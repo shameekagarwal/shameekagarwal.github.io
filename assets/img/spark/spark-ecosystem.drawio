@@ -1,0 +1,42 @@
+<mxfile host="Electron" modified="2023-12-28T13:31:58.944Z" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/22.1.11 Chrome/114.0.5735.289 Electron/25.9.8 Safari/537.36" etag="DizqBnMcNw5SPhX8D5GK" version="22.1.11" type="device">
+  <diagram name="Page-1" id="KBOWgFqubWJC1rfL0Zb_">
+    <mxGraphModel dx="818" dy="531" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="gNFZ58lDK-6gepAimB3Q-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;startArrow=none;startFill=0;" edge="1" parent="1" source="gNFZ58lDK-6gepAimB3Q-1" target="gNFZ58lDK-6gepAimB3Q-3">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="220" y="380" />
+              <mxPoint x="220" y="380" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gNFZ58lDK-6gepAimB3Q-1" value="Spark Engine" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="320" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="gNFZ58lDK-6gepAimB3Q-3" value="Yarn, Mesos, Kubernetes" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="400" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="gNFZ58lDK-6gepAimB3Q-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="gNFZ58lDK-6gepAimB3Q-5" target="gNFZ58lDK-6gepAimB3Q-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gNFZ58lDK-6gepAimB3Q-5" value="RDD" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="240" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="gNFZ58lDK-6gepAimB3Q-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="gNFZ58lDK-6gepAimB3Q-8" target="gNFZ58lDK-6gepAimB3Q-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gNFZ58lDK-6gepAimB3Q-8" value="Dataset / Dataframe / Structured API" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="102.5" y="50" width="235" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="gNFZ58lDK-6gepAimB3Q-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="gNFZ58lDK-6gepAimB3Q-9" target="gNFZ58lDK-6gepAimB3Q-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gNFZ58lDK-6gepAimB3Q-9" value="Catalyst Optimizer" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="130" width="120" height="70" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
