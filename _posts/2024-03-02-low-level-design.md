@@ -32,7 +32,7 @@ mermaid: true
 - subclass should not reduce the feature set offered by base class, only increase it
 - e.g. below violates liskov substitution -
 
-```java
+```txt
 class Vehicle {
 
   void startEngine() {}
@@ -48,7 +48,7 @@ class Bicycle extends Vehicle {
 
 - solution - break into different interfaces - 
 
-```java
+```txt
 class Vehicle {}
 
 class MotorVehicle {
@@ -73,7 +73,7 @@ class Bicycle extends Vehicle {}
 - can be achieved through techniques like "dependency injection" - dependencies are provided to the class from outside instead of the class itself instantiating them
 - thus implementations can also be swapped easily, e.g. - 
 
-```java
+```txt
 class Computer {
 
   private final Keyboard keyboard;
@@ -207,7 +207,7 @@ Screen->>Customer: Show Message
 
 - separate the representation of object from its construction process
 - e.g. helps prevent "telescoping constructors" - 
-  ```java
+  ```txt
   Aircraft(Engine engine);
   Aircraft(Engine engine, Cockpit cockpit);
   Aircraft(Engine engine, Cockpit cockpit, Bathroom bathroom);
@@ -882,7 +882,7 @@ class F16 implements IObserver {
 - we cannot perform barrel rolls and splits one after another
 - we need to start and end with glide
 - the production rules will look like as follows - 
-  ```
+  ```txt
   <flight> -> <flight><show off><flight>
   <flight> -> glide
   <show off> -> barrel roll
