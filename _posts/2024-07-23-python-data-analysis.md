@@ -45,7 +45,7 @@ title: Python Data Analysis
 - textual data can be stored in csv, json, sql, etc
 - **dataframes** - 2 dimensional data - rows and columns
 - in jupyter, we can take a brief look at the data as seen by pandas using the following - 
-  ```py
+  ```txt
   house_data = pd.read_csv("data/kc_house_data.csv")
   house_data
   ```
@@ -53,18 +53,18 @@ title: Python Data Analysis
 - to view all the columns - `house_data.columns`
 - to view the number of rows - `len(house_data)`
 - to see the number of rows and columns in one go - 
-  ```py
+  ```txt
   house_data.shape
   # (21613, 21)
   ```
 - we can construct a new dataframe using the for e.g. first x / last x rows of the existing dataframe
-  ```py
+  ```txt
   first_7 = house_data.head(7)
   last_6 = house_data.tail(6)
   ```
 - by default, pandas will assign data types using the following logic - if it is numeric, assign int if data has no decimals, else float. everything else is assigned to the object data type
 - we can view these datatypes assigned by pandas using `info`. note it also shows the number of rows having null value for that column, the index information, the memory used, etc
-  ```py
+  ```txt
   house_data.info()
   
   # <class 'pandas.core.frame.DataFrame'>
@@ -80,19 +80,19 @@ title: Python Data Analysis
   # memory usage: 3.5+ MB
   ```
 - specifying a separator manually if the separator used in csv is not comma -
-  ```py
+  ```txt
   netflix = pd.read_csv("data/netflix_titles.csv", sep="|")
   netflix
   ```
 - if we want to provide custom column names, we use `names`. in this case, the first row already had the headers but not in a format we liked, so we also pass 0 for the `header` attribute, so that pandas can skip the first row, and use the column names we provide
-  ```py
+  ```txt
   headers = ('sumlev', 'region', 'division', 'state', 'name')
 
   nst = pd.read_csv("data/nst-est2020.csv", names=headers, header=0)
   nst
   ```
 - finally, if we would like to use one of the existing columns as the index column, we can specify that as well using the index parameter
-  ```py
+  ```txt
   mount_everest_deaths = pd.read_csv("data/mount_everest_deaths.csv", index_col="No.")
   mount_everest_deaths
   ```
@@ -101,7 +101,7 @@ title: Python Data Analysis
 ## Basic Operations
 
 - finding the minimum / maximum - it returns a **series** data structure, and we get the min / max for every column when we perform this operation
-  ```py
+  ```txt
   house_data.min()
 
   # id                       1000102
@@ -111,7 +111,7 @@ title: Python Data Analysis
   # bathrooms                    0.0
   ```
 - **sum** - sum all values. e.g. if a column has only holds a 1 or a 0, it gives us the number of values with a 1 for that attribute. for string like columns, it might concatenate them like strings. to prevent that, we also pass in the **numeric only** attribute
-  ```py
+  ```txt
   house_data.sum(numeric_only=True)
 
   # price            1.167293e+10
@@ -123,7 +123,7 @@ title: Python Data Analysis
   ```
 - similarly, we also have **count** (gives the non null values for all columns), **mean**, **median** and **mode**
 - **describe** - automatically gives a bunch of statistics around all numeric columns - 
-  ```py
+  ```txt
   titanic.describe()
 
   #            pclass    survived       sibsp       parch
@@ -137,7 +137,7 @@ title: Python Data Analysis
   # max      3.000000    1.000000    8.000000    9.000000
   ```
 - to get stats around non-numeric columns, we can set **include** to **object**. **top** gives the value that occurs the most number of times, while **freq** gives the number of times 
-  ```py
+  ```txt
   titanic.describe(include = 'object')
 
   #                         name   sex   age    ticket  fare  cabin  embarked  boat  body  home.dest
@@ -150,7 +150,7 @@ title: Python Data Analysis
 ## Series and Columns
 
 - selecting a single column -
-  ```py
+  ```txt
   titanic["name"]
 
   # 0                         Allen, Miss. Elisabeth Walton
@@ -160,14 +160,14 @@ title: Python Data Analysis
   # 1308                                 Zimmerman, Mr. Leo
   ```
 - note - this is of type **pandas series**
-  ```py
+  ```txt
   type(titanic["name"])
 
   # pandas.core.series.Series
   ```
 - **series** - one dimensional array with labels
 - for instance, i think when we select a column, the labels are the index column of the dataframe. e.g. if i index the dataframe using show id -
-  ```py
+  ```txt
   netflix_titles["type"]
 
   # show_id
@@ -185,11 +185,11 @@ title: Python Data Analysis
   - when calling sum on a dataframe, we got a series
   - when calling sum on a series, we will get a single value
   
-  ```py
+  ```txt
   houses["price"].sum()  # 11672925008.0
   ```
 - we can access the labels of a series using **index**, and the underlying values using **values** - 
-  ```py
+  ```txt
   houses_min = houses.min()
   houses_min
   # id                       1000102
@@ -206,17 +206,17 @@ title: Python Data Analysis
 ## Intermediate Operations
 
 - **unique** - give the unique value in a series. the return type of such methods is numpy array
-  ```py
+  ```txt
   houses["bedrooms"].unique()  # array([ 3,  2,  4,  5,  1,  6,  7,  0,  8,  9, 11, 10, 33])
   type(houses["bedrooms"].unique())  # numpy.ndarray
   ```
 - **nunique** - number of unique values. by default, **dropna** is True
-  ```py
+  ```txt
   netflix_titles["director"].nunique(), netflix_titles["director"].nunique(dropna=False)
   # (4528, 4529)
   ```
 - **nlargest** - n largest values. by default, n is 5
-  ```py
+  ```txt
   houses['price'].nlargest(n=7)
 
   # 7252    7700000.0
@@ -228,12 +228,12 @@ title: Python Data Analysis
   # 1164    5110800.0
   ```
 - caveat - handling duplicates - e.g. imagine class has 3 unique values - 1st class, 2nd class and 3rd class. when we call nlargest with n set to 709, we get 709 values, each with value 3. when we call it with 710, we get 709 values for 3, and 1 value for 2. but what if we wanted all values for the last value that comes when using nlargest? we can set the **keep** parameter. when keep is **all**, we get 986 total values, even though n was 710. other possible values for keep are **first** (default) and **last** (probably the last row with the value as 2nd class would be returned in this case?)
-  ```py
+  ```txt
   len(titanic['pclass'].nlargest(709)), len(titanic['pclass'].nlargest(709, keep='all'))  # (709, 709)
   len(titanic['pclass'].nlargest(710)), len(titanic['pclass'].nlargest(710, keep='all'))  # (710, 986)
   ```
 - similarly, we can call it on dataframes as well - we will need to specify the column names as well this time around though - 
-  ```py
+  ```txt
   houses.nlargest(5, "price")
 
   #              id            date     price bedrooms
@@ -242,7 +242,7 @@ title: Python Data Analysis
   # 9254 9208900037 20140919T000000 6885000.0        6
   ```
 - we access a single column like this - `netflix_titles["title"]`. to access multiple columns, we can use the following syntax. note that even though we just pass one parameter, what we get back is still a dataframe, and not a series like we would get when using `netflix_titles["title"]`. note - remember that this creates a new dataframe
-  ```py
+  ```txt
   netflix_titles[["title"]]
 
   #                         title
@@ -259,7 +259,7 @@ title: Python Data Analysis
   # 2          2       1.00
   ```
 - **value counts** - counts of unique values. sorts in descending order of counts by default. we can use the **ascending** parameter to sort it in ascending order of counts
-  ```py
+  ```txt
   houses["bedrooms"].value_counts()
 
   # 3     9824
@@ -267,7 +267,7 @@ title: Python Data Analysis
   # 2     2760
   ```
 - we can also have **value counts** for a **dataframe**. if we do it for all columns, we might end up having 1 value per row, as any two rows having same values for all columns is rare. we would typically perform this on a subset of columns like below. note - we still get back a series - it feels like the **label** of the series is comprised of multiple attributes, but it is still a pandas series and not a dataframe
-  ```py
+  ```txt
   houses[["bedrooms", "bathrooms"]].value_counts()
 
   # bedrooms  bathrooms
@@ -283,13 +283,13 @@ title: Python Data Analysis
 
 - in case of a **series**, we plot **values** against **labels**. if i try to for e.g. do `houses["bedrooms"].plot()`, it would not make much sense, since we would be plotting number of bedrooms against an index that might be like a house identifier
 - so, we can for e.g. plot value counts of bedrooms - this way, we would be plotting number of houses with the given number of bedrooms against number of bedrooms - as we see below, 3 bedrooms are the most common
-  ```py
+  ```txt
   houses['bedrooms'].value_counts().plot(kind='bar')
   ```
   ![](/assets/img/python-data-analysis/plotting-basics-bedroom-value-counts.png)
 - above, we tried plotting a pandas **series**. we can also plot **dataframes**
 - e.g. try looking at the general distribution between bedrooms and bathrooms, by plotting one against another. we will have to customize both the x and y axis in this case, otherwise again, we might end up plotting all attributes against the autogenerated index
-  ```py
+  ```txt
   houses.plot(x="bedrooms", y="bathrooms", kind="scatter")
   ```
   ![](/assets/img/python-data-analysis/houses-bedrooms-vs-bathrooms-scatter-plot.png)
@@ -300,7 +300,7 @@ title: Python Data Analysis
 - by default, a **range index** is used - auto incrementing index that goes 0, 1, 2, and so on
 - when we select a column in a dataframe, the labels used for the series is the same as the one used for the original dataframe
 - e.g. if we have a csv containing the stock related data for a particular stock, we can set the index column to be date, to easily get the low and high price for a particular date. we can set the index to a column manually by calling **set index**. note - like most things, this too returns a new dataframe instead of mutating the original dataframe
-  ```py
+  ```txt
   bitcoin["High"]
   # 0      147.488007
   # 1      146.929993
@@ -322,7 +322,7 @@ title: Python Data Analysis
   ```
 - if for e.g. we were to call `bitcoin["High"].plot()` after setting the index, the plot would make a lot more sense - high price against date, so how the price of bitcoin changed over days / years. without the re-indexing, it would display the price of bitcoin against an auto-incrementing integer, which would not have made much sense
 - we can also do it when reading the csv using the **index col** parameter as seen [earlier](#dataframes-and-datasets)
-  ```py
+  ```txt
   happiness_indexed = pd.read_csv("data/world-happiness-report-2021.csv", index_col="Country name")
   happiness_indexed
 
@@ -336,7 +336,7 @@ title: Python Data Analysis
 ## Sorting
 
 - **sort values** - it is present both in series and dataframe. the default sort order is ascending. but, it is not in place. with most commands, i was reassigning the actual variable itself. there is another way to achieve this though when using these functions - passing in true for the **in place** argument
-  ```py
+  ```txt
   happiness_indexed.sort_values("Healthy life expectancy", ascending=False, inplace=True)
   
   #               Healthy life expectancy  Freedom to make life choices
@@ -346,7 +346,7 @@ title: Python Data Analysis
   #    Japan                       75.100                         0.796
   ```
 - sorting by multiple columns - descending by number of bedrooms, ascending by number of bathrooms - 
-  ```py
+  ```txt
   houses = pd.read_csv("data/kc_house_data.csv")
   houses.sort_values(["bedrooms", "bathrooms"], ascending=[False, True])
 
@@ -356,16 +356,16 @@ title: Python Data Analysis
   # 15161        10       2.00
   ```
 - when sorting by a text column, e.g. name, the sorting will use the ascii value, so `Arjun` comes before `abhishek`. we can use the **key** function in pandas to provide a custom lambda to use when sorting rows - 
-  ```py
+  ```txt
   titanic.sort_values("name", inplace=True, key=lambda name: name.str.lower())
   ```
 - **sort index** - helps sort the data by the index / labels - 
-  ```py
+  ```txt
   happiness.sort_index(inplace=True)
   ```
 - we can call **sort values** / **sort index** on pandas series as well - the difference here is providing the column would not be required when sorting by values
 - by default, value counts sorts on frequency. however, this might not make sense when we try to plot it - houses with 3 bedrooms would appear before houses with 1 bedroom on the x axis. so, we sort by the number of bedrooms i.e. the **index**
-  ```py
+  ```txt
   bedrooms_stats = houses["bedrooms"].value_counts()
   bedrooms_stats
 
@@ -387,7 +387,7 @@ title: Python Data Analysis
 - we already tried accessing data using columns. [using one column](#series-and-columns) gives us a pandas series, while [using multiple columns](#intermediate-operations) gives a dataframe. we only need a pair of square braces for accessing columns
 - to access particular rows, we can use **loc** / **iloc**
 - e.g. our data is indexed using country name. we can access the data for a particular country using loc. output format i believe is a series, where the labels are the column names
-  ```py
+  ```txt
   happiness
   #                Healthy life expectancy   Freedom to make life choices
   # Country name
@@ -401,7 +401,7 @@ title: Python Data Analysis
   # Freedom to make life choices   0.602
   ```
 - just like when accessing columns, if we use an additional pair of square braces, we start getting a dataframe instead
-  ```py
+  ```txt
   happiness.loc[["Yemen"]]
 
   #               Healthy life expectancy   Freedom to make life choices
@@ -409,7 +409,7 @@ title: Python Data Analysis
   # Yemen                          57.122                          0.602
   ```
 - we can also use **slicing** with **loc** - e.g. get all the rows between denmark to france. note - remember to sort using index first for this to work properly
-  ```py
+  ```txt
   happiness.sort_index(inplace=True)
   happiness.loc["Denmark" : "France"]
 
@@ -423,14 +423,14 @@ title: Python Data Analysis
   ```
 - **iloc** - access rows using **integer position-based indexing**
 - e.g. i want the 20th country alphabetically - i may not know what it is. i can however access it using iloc. again, i get back a series
-  ```py
+  ```txt
   happiness.iloc[19]
 
   # Healthy life expectancy         62.000
   # Freedom to make life choices     0.959
   ```
 - e.g. if i wanted the 1st 3rd and 5th countries, i add an additional pair of square braces, and again, get back a dataframe this time around - 
-  ```py
+  ```txt
   happiness.iloc[[0, 2, 4]]
   
   #                Healthy life expectancy   Freedom to make life choices
@@ -440,7 +440,7 @@ title: Python Data Analysis
   #      Armenia                    67.055                          0.825
   ```
 - finally, again with iloc, we can also use slicing. we will use integer positions, where we can specify start, end and optionally a step
-  ```py
+  ```txt
   happiness.iloc[0:5]
   ```
 - so, loc uses values of index, iloc uses numeric position
@@ -449,7 +449,7 @@ title: Python Data Analysis
 ## Filtering
 
 - carefully look at the three steps we follow below for **filtering** - we can use a column to get a series, we generate a boolean series from it by using conditions, and finally we get the rows that hold true for the corresponding position in the boolean series
-  ```py
+  ```txt
   df
 
   #     name                            sex      age
@@ -479,7 +479,7 @@ title: Python Data Analysis
   # 2                    Allison, Miss. Helen Loraine   female    2
   ```
 - we saw `==` above. we can also use the other **comparison** operators like `!=`, `>=`, `>`, `<=`, `<`, etc
-  ```py
+  ```txt
   houses[houses['price'] > 5000000]
 
   #               id             date      price  bedrooms  bathrooms
@@ -489,7 +489,7 @@ title: Python Data Analysis
   # 9254  9208900037  20140919T000000  6885000.0         6       7.75
   ```
 - series have a method called **between** which we can use. e.g. find houses with bedrooms in the range 5 to 7 -
-  ```py
+  ```txt
   houses[houses['bedrooms'].between(5, 7)].value_counts('bedrooms')
 
   # bedrooms
@@ -498,7 +498,7 @@ title: Python Data Analysis
   # 7         38
   ```
 - we can use **isin**, e.g. find netflix movies in india or south korea - 
-  ```py
+  ```txt
   netflix[netflix['country'].isin(['India', 'South Korea'])].value_counts('country')
 
   # country
@@ -506,7 +506,7 @@ title: Python Data Analysis
   # South Korea    199
   ```
 - we can combine conditions using boolean operators - 
-  ```py
+  ```txt
   women = titanic['sex'] == 'female'
   died = titanic['survived'] == 0
   titanic[women & died]
@@ -517,12 +517,12 @@ title: Python Data Analysis
   # 105  female         0       1      A29
   ```
 - note - doing it in one line - do not forget parentheses, otherwise python cannot parse it correctly due to priority - 
-  ```py
+  ```txt
   titanic[(titanic['sex'] == 'female') & (titanic['survived'] == 0)]
   ```
 - similarly, we can use `|` for or, `~` for negation
 - **isna** - returns true for rows where the column is missing a value - 
-  ```py
+  ```txt
   netflix[netflix['director'].isna()]
 
   #      show_id   type                                      title   director
@@ -533,7 +533,7 @@ title: Python Data Analysis
   # 14       s15     TV   Show Crime Stories: India Detectives            NaN
   ```
 - my understanding - everywhere above, we are trying to filter using a column value. we can use the index as well though - recall - we saw in [series](#series-and-columns) that we can access the labels using **index**. my understanding - the point is, whatever we did using `dataframe[column]`, can be done using `dataframe.index` as well -
-  ```py
+  ```txt
   countries[countries.index != 'Denmark']
   ```
 
@@ -543,15 +543,15 @@ title: Python Data Analysis
   - 0 / **index** to drop rows
   - 1 / **columns** to drop columns
   
-  ```py
+  ```txt
   bitcoin.drop(labels=['Name', 'Symbol'], axis='columns')
   ```
 - another way to do this is to just pass in the **columns** parameter directly, instead of passing in **labels** and **axis**
-  ```py
+  ```txt
   bitcoin.drop(columns=['Name', 'Symbol'])
   ```
 - till now, we saw dropping columns. we can also **drop rows** using one of the following ways - 
-  ```py
+  ```txt
   # method 1
   countries.drop(labels=['Denmark', 'Finland', 'Iceland'], axis='index')
 
@@ -563,27 +563,27 @@ title: Python Data Analysis
   countries.drop(['Denmark', 'Finland', 'Iceland'])
   ```
 - drop all countries except the first 10. we can pass an index series as well
-  ```py
+  ```txt
   countries.drop(countries.index[10:])
   ```
 - creating a new column with a **constant value** - 
-  ```py
+  ```txt
   titanic['constant'] = 'something'
   ```
 - creating a new column with **dynamic values** - 
-  ```py
+  ```txt
   # number of relatives = number of parents and children + number of siblings and spouses
   titanic["relatives"] = titanic["parch"] + titanic["sibsp"]
   ```
 - **renaming columns** - i think the arguments are similar to **drop** - instead of **labels** and **axis**, we pass **mapper** and **axis**
-  ```py
+  ```txt
   mapper = { 'Regional indicator': 'regional_indicator', 'Ladder score': 'ladder_score' }
   
   countries.rename(mapper=mapper, axis='columns')
   countries.rename(columns=mapper)
   ```
 - similarly, we can **rename indices** - 
-  ```py
+  ```txt
   mapper = { 'Netherlands': 'the_netherlands' }
 
   countries.rename(mapper=mapper, axis='index')
@@ -591,7 +591,7 @@ title: Python Data Analysis
   countries.rename(mapper)
   ```
 - a complex problem - find the show called "Evil", and change its index label to s6666 inplace
-  ```py
+  ```txt
   evil_index = netflix[netflix['title'] == 'Evil'].index[0]
   netflix.rename(index={ evil_index: 's6666' }, inplace=True)
   ```
@@ -600,17 +600,17 @@ title: Python Data Analysis
 
 - my understanding - we have already seen tricks to change column names / index names using **rename**. now we look at **replace** - the way of renaming the actual values inside
 - we can use **replace** as follows. again, it is not **in place** by default, so we need to pass true for in place explicitly
-  ```py
+  ```txt
   titanic.replace({'sex': { 'female': 'F', 'male': 'M' }}, inplace=True)
   ```
 - this method is supported for **series** as well and not just **dataframes**. so, we can use the technique below as well - 
-  ```py
+  ```txt
   titanic['sex'] = titanic['sex'].replace({ 'female': 'F', 'male': 'M' })
   # OR
   titanic['sex'].replace({ 'female': 'F', 'male': 'M' }, inplace=True)
   ```
 - in the titanic dataset, all unknown values in the age column hold `?`. we can replace them with **none**. note the use of **dropna** in **value counts**, i do not think this was mentioned earlier
-  ```py
+  ```txt
   titanic.value_counts('age')
   # age
   # ?         263
@@ -629,20 +629,20 @@ title: Python Data Analysis
   - we know the [indices](#indexing) of the rows
   - we have a [filtering condition](#filtering) to filter the desired rows
 - we can use **loc** for both use cases above
-  ```py
+  ```txt
   countries.loc[['Denmark', 'Sweden', 'Norway'], ['Regional indicator']] = 'Scandinavia'
   ```
 - setting multiple columns to a single value - 
-  ```py
+  ```txt
   countries.loc[['Finland', 'Denmark'], ['upperwhisker', 'lowerwhisker']] = 4.5
   ```
 - setting multiple columns, each to its own specific value - 
-  ```py
+  ```txt
   countries.loc[['Finland', 'Denmark'], ['upperwhisker', 'lowerwhisker']] = [4.5, 2.8]
   ```
 - till now, even in [here](#indexing), we have tied accessing rows whose indices we know
 - however, loc can be passed the boolean pandas series we saw in [filtering](#filtering) as well -
-  ```py
+  ```txt
   houses.loc[houses['bedrooms'] >= 10]
   #         id           date              price       bedrooms   bathrooms
   # 8757    1773100755   20140821T000000   520000.0    11         3.00
@@ -651,7 +651,7 @@ title: Python Data Analysis
   # 15870   2402100895   20140625T000000   640000.0    33         1.75
   ```
 - advantage of the above - we can now conditionally update certain rows. we have already seen how to update rows using loc, and we know how to filter rows based on conditions
-  ```py
+  ```txt
   houses.loc[houses['bedrooms'] >= 10, ['bedrooms']] = 9999 
   houses.loc[houses['bedrooms'] == 9999]
   #         id           date              price       bedrooms   bathrooms
@@ -661,7 +661,7 @@ title: Python Data Analysis
   # 15870   2402100895   20140625T000000   640000.0    9999       1.75
   ```
 - a complex problem - add a new column 'luxurious' - set it to 'yes' for houses with grade > 12 and view = 4, and set it to 'no' for others -
-  ```py
+  ```txt
   good_view = houses['view'] == 4
   good_quality = houses['grade'] > 12
   houses[good_view & good_quality]
@@ -683,7 +683,7 @@ title: Python Data Analysis
 ## Data Types
 
 - we have a dataset that holds `?` for columns for missing values in the csv
-  ```py
+  ```txt
   titanic.info()
   # #   Column     Non-Null Count  Dtype 
   #---  ------     --------------  ----- 
@@ -701,7 +701,7 @@ title: Python Data Analysis
   ```
 - issue - we cannot do things like finding the mean age
 - solution - we convert the data type of the age column. first, we **replace** `?` with **none**, then we **cast** it to type float - 
-  ```py
+  ```txt
   titanic['age'] = titanic['age'].astype('float')
   # ValueError: could not convert string to float: '?'
 
@@ -723,13 +723,13 @@ title: Python Data Analysis
   ```
 - now, we can use numeric functions like for e.g. `titanic['age'].mean()`
 - another option - **to numeric** - it is a more aggressive alternative to the one we saw earlier. earlier, we manually ran replace for all the question marks to be replaced by none, and then did the type conversion from **object** to **float**. now, with the below approach, we will say try converting it to numeric, and if you cannot, just put a none in there. the default value of **errors** is **raise** i.e. raise an exception when you encounter an error. we typically change it to **coerce** for getting the behavior we described
-  ```py
+  ```txt
   titanic['body'] = pd.to_numeric(titanic['body'], errors='coerce')
   ```
 - **category** type - useful when a column has a set of **finite** possible values, e.g. gender
 - advantage - less memory usage etc
 - by default, this is the situation. specially look at the **dtype** column and **memory usage** in the output 
-  ```py
+  ```txt
   titanic['sex'].value_counts()
   # sex
   # male      843
@@ -742,7 +742,7 @@ title: Python Data Analysis
   # memory usage: 143.3+ KB
   ```
 - when we manually cast gender to type of **category**, the output looks like follows. look how the type is now changed and the memory usage too has reduced
-  ```py
+  ```txt
   titanic['sex'] = titanic['sex'].astype('category')
 
   titanic['sex'].value_counts()
@@ -769,7 +769,7 @@ title: Python Data Analysis
 ## NA Values
 
 - **is na** - returns true for cells that do not contain a value. can be called on both the dataframe and series. look at the last statement, where we generate a boolean series that represent all rows which contain null for league, and then use it as a filter condition
-  ```py
+  ```txt
   game_stats = pd.read_csv('data/game_stats.csv')
   game_stats
   #    name      league      points  assists  rebounds
@@ -808,7 +808,7 @@ title: Python Data Analysis
   ```
 - **drop na** - dropping rows with missing values. it too creates a new copy unless we specify **in place** explicitly
 - to drop rows where any of the columns hold null, specify the **how** parameter as **any**. note - this is also the default i.e. when we call **drop na** without any parameters
-  ```py
+  ```txt
   game_stats.dropna(how='any')
 
   #    name   league  points  assists  rebounds
@@ -816,7 +816,7 @@ title: Python Data Analysis
   # 5  steph  nba     49.0    8.0      10.0
   ```
 - drop only rows where all the columns hold null - specify the **how** parameter as **all**
-  ```py
+  ```txt
   game_stats.dropna(how='all')
 
   #    name      league      points  assists  rebounds
@@ -828,7 +828,7 @@ title: Python Data Analysis
   # 5  steph     nba         49.0    8.0      10.0  
   ```
 - drop rows where any of the specified columns are not present
-  ```py
+  ```txt
   game_stats.dropna(subset=['points', 'rebounds'])
 
   #    name     league  points  assists  rebounds
@@ -838,13 +838,13 @@ title: Python Data Analysis
   # 5  steph    nba     49.0    8.0      10.0
   ```
 - finally, we can drop columns as well by setting the **axis** parameter, e.g. drop all columns where any of the rows contain missing values for it
-  ```py
+  ```txt
   netflix.dropna(how='any', axis=1)
   ```
 - note - **drop na** works for **series** as well
 - we can use **fill na** to fill the cells missing values with a particular value
 - if we call it directly with a value, it would apply to all columns - 
-  ```py
+  ```txt
   game_stats.fillna(0)
 
   #    name      league      points  assists  rebounds
@@ -857,7 +857,7 @@ title: Python Data Analysis
   # 6  0         0           0.0     0.0      0.0
   ```
 - we can however specify specific columns like so - 
-  ```py
+  ```txt
   game_stats.fillna({ 'points': 10.0, 'assists': 0 })
 
   #    name       league      points  assists  rebounds
@@ -870,12 +870,12 @@ title: Python Data Analysis
   # 6  anonymous  NaN         NaN     0.0      NaN
   ```
 - fun exercise - instead of using **fill na**, use [**loc**](#updating-values) for updating values where it is missing
-  ```py
+  ```txt
   netflix.loc[netflix['rating'].isna(), 'rating'] = 'TV-MA'
   netflix.fillna({ 'rating': 'TV-MA' })
   ```
 - assume we have two columns in a sales table for shipping and billing addresses. we would like to default the shipping address to the billing address wherever shipping address is missing. we can do it as follows - 
-  ```py
+  ```txt
   sales.fillna({ 'shipping_zip': sales['billing_zip'] }, inplace=True)
   ```
 - my understanding - based on above point, we can specify a **series** as well for the value, and it will fill using the corresponding value in the series wherever a null is encountered
@@ -884,19 +884,19 @@ title: Python Data Analysis
 
 - dates an be present in lots different formats - months can be in words or numbers, days can come before months or the other way around, separator can be - or /, etc
 - my understanding - the **to datetime** function does a (mostly) great job at auto detecting the date time format
-  ```py
+  ```txt
   pd.to_datetime('31 Dec. 2019')  # Timestamp('2019-12-31 00:00:00')
   pd.to_datetime('12/31/2019')  # Timestamp('2019-12-31 00:00:00')
   ```
 - we can however pass it parameters to configure its behavior as well in case of ambiguity
 - e.g. look below how we use **day first** and **year first** to get different outputs for the same input - 
-  ```py
+  ```txt
   pd.to_datetime('10-11-12')  # Timestamp('2012-10-11 00:00:00')
   pd.to_datetime('10-11-12', dayfirst=True)  # Timestamp('2012-11-10 00:00:00')
   pd.to_datetime('10-11-12', yearfirst=True, dayfirst=True)  # Timestamp('2010-12-11 00:00:00')
   ```
 - we can use the more powerful **format** as well. [format codes reference](https://docs.python.org/3/library/datetime.html#format-codes)
-  ```py
+  ```txt
   pd.to_datetime('10-11-12', format='%y-%d-%m')  # Timestamp('2010-12-11 00:00:00')
 
   meetings = ['Dec 11 2019 Meeting', 'Jan 15 2024 Meeting', 'Mar 7 2024 Meeting']
@@ -904,7 +904,7 @@ title: Python Data Analysis
   # DatetimeIndex(['2019-12-11', '2024-01-15', '2024-03-07'], dtype='datetime64[ns]', freq=None)
   ```
 - python's default behavior - try parsing it like a numeric column if possible, else change to object. so, converting a dataframe column to datetime format using **astype** - 
-  ```py
+  ```txt
   ufos.info()
   # ...
   # 1   city            87888 non-null  object 
@@ -920,7 +920,7 @@ title: Python Data Analysis
   # 3   date_time       86938 non-null  datetime64[ns]
   ```
 - we can also specify the datetime columns upfront while reading a csv, instead of converting it later - 
-  ```py
+  ```txt
   ufos = pd.read_csv('data/nuforc_reports.csv', parse_dates=['date_time'])
   ufos.info()
   # ...
@@ -931,21 +931,21 @@ title: Python Data Analysis
 - there are also keyword arguments for specifying the datetime format etc in the read csv call, refer documentation
 - we can access the **date time properties** object on the column of type datetime64. we access it using **dt**. [full list of properties available](https://pandas.pydata.org/docs/user_guide/timeseries.html#time-date-components)
 - e.g. view the top 10 years with the most ufo sightings. we first need to extract just the year from the datetime column, and then, we can chain **value counts** with **nlargest** to get the top 10 years
-  ```py
+  ```txt
   ufos['date_time'].dt.year.value_counts().nlargest(10).plot(kind='bar')
   ```
   ![](/assets/img/python-data-analysis/value-counts-ufo-sightings-by-year-datetime.png)
 - **comparing datetime columns**
   - notice how we provide strings and pandas can parse it for us automatically. the example below will give us all the ufo sightings since 12am on 22 december, 2019
-    ```py
+    ```txt
     ufos[ufos['date_time'] > '2019-12-22']
     ```
   - we already saw how we can access properties on a datetime column. we can use it to perform filtering as well. the example below will give us all sightings where the hour was 2 .i.e. it could have happened at 2.30am, 2.49am etc
-    ```py
+    ```txt
     ufos[ufos['date_time'].dt.hour == 2.0]
     ```
 - **time deltas** - we get this when we subtract two datetime objects. e.g. get the people who waited the longest to report after seeing a ufo 
-  ```py
+  ```txt
   ufos['posted'] - ufos['date_time']
   # 0          9 days 05:17:00
   # 1          6 days 05:30:00
@@ -968,7 +968,7 @@ title: Python Data Analysis
   - create a bar plot showing the total number of sales per month in that period
   - the x axis should be in calendar order (1-12)
 - we filter to get all houses sold in the time period. then, we extract the month and perform value counts on it. finally, we sort by index i.e. by months since by default, value counts will sort by counts. finally, we plot it
-  ```py
+  ```txt
   houses_sold = houses[houses['date'].between('05-01-2014', '05-01-2015')]
   houses_sold['date'].dt.month.value_counts().sort_index().plot(kind='bar')
   ```
@@ -976,7 +976,7 @@ title: Python Data Analysis
 - i wanted to get the **week of year**. i could not access any such property on dt. so, i instead tried to format the date into a string. then, we can use the [format codes](https://docs.python.org/3/library/datetime.html#format-codes) we mentioned earlier as well
 - e.g. create a line plot showing the total number of sales by week of the year number (1-52)
 - first we obtain the week number the house was sold in. then, we obtain the value counts for each of the week. then we sort by the index i.e. the week number, because otherwise the x axis of the line plot will not be sorted and look weird - recall that value counts will sort by counts and not index
-  ```py
+  ```txt
   plt.figure(figsize=(15, 5))
   plt.xticks(range(52))
   houses['date'].dt.strftime('%V').value_counts().sort_index().plot(kind='line')
@@ -988,16 +988,16 @@ title: Python Data Analysis
 - till now, whenever we called **plot** on pandas series, it was actually calling matplotlib bts
 - however, it can have limitations, which is when we might want to interact with matplotlib
 - most common way of importing matplotlib - 
-  ```py
+  ```txt
   import matplotlib.pyplot as plt
   ```
 - when we do the following, it defaults values on the x axes to be 0, 1, 2, ...
-  ```py
+  ```txt
   plt.plot([2, 6, 2, 4, 8])
   ```
   ![](/assets/img/python-data-analysis/matplotlib-very-basic.png)
 - we can specify values for both x and y as follows - 
-  ```py
+  ```txt
   salaries = [20000, 50000, 60000, 100000, 250000, 150000]
   ages = [20, 25, 30, 32, 45, 65]
   plt.plot(ages, salaries)
@@ -1008,20 +1008,20 @@ title: Python Data Analysis
 - a figure can have multiple **axes**
 - each axes is a combination of **labels**, **data**, etc
 - assume we have the following sample data - 
-  ```py
+  ```txt
   nums = range(6)
   nums_squared = [num**2 for num in nums]
   nums_cubed = [num**3 for num in nums]
   ```
 - when we have the following code, all of them are plotted on the **same figure** and the **same axes**
-  ```py
+  ```txt
   plt.plot(nums)
   plt.plot(nums_squared)
   plt.plot(nums_cubed)
   ```
   ![](/assets/img/python-data-analysis/same-figure-same-axes.png)
 - we call **figure** to create a new figure and make it the current figure. so when we call **plot**, it basically plots on the current active figure. so, with the code below, all of them are plotted on **different figures**
-  ```py
+  ```txt
   plt.figure(figsize=(4,3))
   plt.plot(nums)
 
@@ -1036,7 +1036,7 @@ title: Python Data Analysis
   ![](/assets/img/python-data-analysis/different-figure-iii.png)
 - note how we control the size of a figure in matplotlib - we can pass **figsize** and **dpi** or **dots per inch** to figure. i usually just touch figsize, which defaults to 6.4, 4.8
 - we can specify the linestyle when plotting as follows. notice the shorthand at the third call as well
-  ```py
+  ```txt
   plt.plot(nums, nums, linestyle='dashed')
   plt.plot(nums, nums_squared, linestyle='dotted')
   plt.plot(nums, nums_cubed, linestyle='-.')
@@ -1044,12 +1044,12 @@ title: Python Data Analysis
   ![](/assets/img/python-data-analysis/plot-line-styles.png)
 - when calling plot, we can specify parameters like **color**, **linewidth**, etc as well if needed
 - we can also specify **markers** and their styling
-  ```py
+  ```txt
   plt.plot(nums, nums_cubed, marker='o')
   ```
   ![](/assets/img/python-data-analysis/plot-with-markers.png)
 - we can use **title** to set a title for the **axes**, and **labels** to set labels for the x and y axis individually
-  ```py
+  ```txt
   plt.plot(nums, nums_squared)
   plt.title("Squares of Numbers")
   plt.xlabel("Input")
@@ -1058,7 +1058,7 @@ title: Python Data Analysis
   ![](/assets/img/python-data-analysis/plot-with-title.png)
 - remember - all these methods we see - plot, title, xlabel and ylabel, and others that we see later - also accept a ton of options to control the size, spacing, color, positioning, etc. refer documentation as and when needed
 - when we try to plot the below, look at the default graph. notice how on x axis for e.g., matplotlib itself decided that it should start the **ticks** from 3 etc
-  ```py
+  ```txt
   nums = [3, 3.5, 4, 7, 9]
   nums_squared = [num**2 for num in nums]
   plt.plot(nums, nums_squared, marker='o')
@@ -1068,19 +1068,19 @@ title: Python Data Analysis
   - we can only provide the first argument. this controls what ticks should show up
   - we can provide the second argument as well. this controls what the actual tick should be named inside the graph
 
-  ```py
+  ```txt
   plt.plot(nums, nums_squared, marker='o')
   plt.xticks([1, 2, 3, 4, 7, 8, 9], ['one', 'two', 'three', 'four', 'seven', 'eight', 'nine'])
   ```
   ![](/assets/img/python-data-analysis/custom-ticks.png)
 - option 2 - we can only modify the **limits**. e.g. we would like the x axis start from -2 and end at 20 for some reason
-  ```py
+  ```txt
   plt.plot(nums, nums_squared, marker='o')
   plt.xlim(-2, 15)
   ```
   ![](/assets/img/python-data-analysis/custom-tick-limits.png)
 - **legend** - helps distinguish between the different graphs using **labels** when they are on the same **axes** in the same **figure**
-  ```py
+  ```txt
   nums = [1, 2, 3, 4]
   nums_squared = [num ** 2 for num in nums]
   nums_cubed = [num ** 3 for num in nums]
@@ -1093,13 +1093,13 @@ title: Python Data Analysis
   ```
   ![](/assets/img/python-data-analysis/same-figure-same-axes-with-legend.png)
 - plotting **bar** charts. assume we have the following data - 
-  ```py
+  ```txt
   plants = ['spinach', 'turnip', 'rhubarb', 'broccoli', 'kale']
   died = [10, 25, 5, 30, 21]
   germinated = [74, 88, 56, 69, 59]
   ```
 - by default, the different charts would be one on top of another - 
-  ```py
+  ```txt
   plt.bar(plants, germinated)
   plt.bar(plants, died)
   ```
@@ -1109,51 +1109,51 @@ title: Python Data Analysis
   - i also ensured they are **0.25%** of their actual width, as this ensures the right spacing. if for e.g. i did 0.5, the second bar of a tick will touch the first bar of the next tick
   - i set **align** to **edge**. this alsigns them to the edge of the tick. the default is **center** (refer the graph created by default above)
 
-  ```py
+  ```txt
   plt.bar(plants, germinated, width=0.25, align='edge')
   plt.bar(plants, died, width=-0.25, align='edge')
   ```
   ![](/assets/img/python-data-analysis/multiple-bar-graph-alignment-side-by-side.png)
 - bar also receives another keyword argument - **bottom**
-  ```py
+  ```txt
   plt.bar(plants, germinated, bottom=[20, 20, 20, 20, 20])
   plt.ylim(0, 120)
   ```
   ![](/assets/img/python-data-analysis/bar-graph-with-custom-bottom.png)
 - use case of the stupidity above 🤣 - we can get the different bars to **stack** one on top of another. the y coordinates of one graph becomes the bottom of another
-  ```py
+  ```txt
   plt.bar(plants, died, bottom=germinated, label='died')
   plt.bar(plants, germinated, label='germinated')
   plt.legend()
   ```
   ![](/assets/img/python-data-analysis/stacked-bar-graph.png)
 - we can use **barh** instead of bar for horizontal bar graphs. notice how for **stacking**, the **bottom** changes to **left**
-  ```py
+  ```txt
   plt.barh(plants, died, left=germinated, label='died')
   plt.barh(plants, germinated, label='germinated')
   plt.legend()
   ```
   ![](/assets/img/python-data-analysis/stacked-horizontal-bar-graph.png)
 - **histogram** - assume we have the following data. note - i did a value count to explain the distribution of data - 
-  ```py
+  ```txt
   nums = [1,2,2,3,5,4,2,2,1,1,3,4,4,2,1,5,2,3,4,5]
 
   { num: nums.count(num) for num in nums }
   # {1: 4, 2: 6, 3: 3, 4: 4, 5: 3}
   ```
 - when i try to create a histogram on this data, it looks as follows by default - 
-  ```py
+  ```txt
   plt.hist(nums)
   ```
   ![](/assets/img/python-data-analysis/default-histogram-without-binning.png)
 - we can configure the **bins** as follows. my understanding - 1 and 2 together have frequency of 10, 3 has frequency of 3 while 4 and 5 together have frequency of 7. now, the range has been divided into three parts 1-2.33, 2.33-3.66, 3.66-4.99, and the histogram has been plotted accordingly
-  ```py
+  ```txt
   plt.hist(nums, bins=3)
   ```
   ![](/assets/img/python-data-analysis/histogram-with-custom-binning.png)
 - **histograms** are a little different i feel because unlike pie chart, bar graph, etc where we give the actual values to be plotted, here, we only give a series of values and it autmatically calculates the frequency and bins them accordingly
 - a realisitic example - comparing the distribution of ages of people travelling in first class vs third class in the titanic. observation - more younger people were travelling in third class, wheras more older people were travelling in first class. also, note how we change the alpha to visualize them simultaneously
-  ```py
+  ```txt
   titanic = pd.read_csv('/content/drive/MyDrive/Python - Basic Data Analysis/titanic.csv')
   
   # clean the age column
@@ -1175,7 +1175,7 @@ title: Python Data Analysis
   - we use the **explode** parameter to disconnect the sectors from the pie chart. the fraction determines how far out the sectors would be from the pie. the order is the same as the order of the labels
   - we use the **autopct** parameter to add percentages inside the sectors. we are using `autopct='%.0f%%'` here, if we would have used for e.g. `autopct='%.2f'`, it would have shown in this form - `57.73` (with 2 decimal places and without the `%`)
   
-  ```py
+  ```txt
   plt.pie(costs, labels=labels, autopct='%0.0f%%', explode=(0, 0.1, 0, 0, 0.1))
   plt.show()
   ```
@@ -1185,7 +1185,7 @@ title: Python Data Analysis
   - **title** is used for individual **axes** headings while **suptitle** is used for the **figure** heading
   - we call **tight layout**, as it helps python adjust the padding around subplots
 
-  ```py
+  ```txt
   nums = [1, 2, 3, 4, 5]
   nums_squared = [num ** 2 for num in nums]
   nums_cubed = [num ** 3 for num in nums]
@@ -1210,7 +1210,7 @@ title: Python Data Analysis
   ```
   ![](/assets/img/python-data-analysis/subplots-example.png)
 - now, imagine if we go back to our titanic example, and we want to plot all three classes - first second and third in different subplots - 
-  ```py
+  ```txt
   titanic = pd.read_csv('/content/drive/MyDrive/Python - Basic Data Analysis/titanic.csv')
   titanic['age'] = pd.to_numeric(titanic['age'], errors='coerce')
   
@@ -1238,7 +1238,7 @@ title: Python Data Analysis
   ```
   ![](/assets/img/python-data-analysis/titanic-subplot-without-shared-axes.png)
 - issue - we know that the scale in the third vs other plots are different i.e. a lot more people are travelling in the third class than in the 2nd and 1st class. this is not evident right off the bat by looking at the graph. hence, we can specify the **sharey** parameter
-  ```py
+  ```txt
   # ...
   axes = plt.subplot(1, 3, 1)
   # ...
@@ -1249,7 +1249,7 @@ title: Python Data Analysis
   ![](/assets/img/python-data-analysis/titanic-subplot-with-shared-axes.png)
 - question - write the code for achieving the below. note - do not use the plot method of pandas series and dataframes 
   ![](/assets/img/python-data-analysis/final-matplotlib-example.png)
-  ```py
+  ```txt
   houses = pd.read_csv('/content/drive/MyDrive/Python - Basic Data Analysis/kc_house_data.csv', parse_dates=['date'])
 
   sales_by_month = houses['date'].dt.month.value_counts().sort_index()
@@ -1300,12 +1300,12 @@ title: Python Data Analysis
 ## Maptlotlip + Pandas
 
 - plotting a pandas **series**
-  ```py
+  ```txt
   titanic['sex'].value_counts().plot(kind='pie')
   ```
   ![](/assets/img/python-data-analysis/pandas-series-example.png)
 - plotting a pandas **dataframe** - note how it is making a bar for all columns automatically
-  ```py
+  ```txt
   house_area
   #        sqft_living  sqft_lot
   # 12777  13540        307752
@@ -1318,7 +1318,7 @@ title: Python Data Analysis
   ```
   ![](/assets/img/python-data-analysis/pandas-dataframe-example.png)
 - ufo sightings by month - we use this series in the next few points, and this is what our data looks like - 
-  ```py
+  ```txt
   ufo_sightings_by_month
   # 1.0      5979
   # 2.0      4559
@@ -1335,11 +1335,11 @@ title: Python Data Analysis
   ```
 - for providing parameters like **title**, we have two options - 
   - option 1 - in the same line. disadvantage - lesser options to configure styling etc
-    ```py
+    ```txt
     ufo_sightings_by_month.plot(kind='bar', title='UFO Sightings by Month', xlabel='month', ylabel='num. of sightings')
     ```
   - option 2 - i think the central idea is instead of interacting only with pandas plot api, we mix with calls to matplotlib apis directly like we saw in [matplotlib](#matplotlib). advantage - now, we can configure styling etc
-    ```py
+    ```txt
     ufo_sightings_by_month.plot(kind='bar')
 
     plt.title('UFO Sightings by Month')
@@ -1350,7 +1350,7 @@ title: Python Data Analysis
   ![](/assets/img/python-data-analysis/ufo-sightings-by-month-numeric-month-labels.png)
 - now, we would like to use months abbreviations instead. we have multiple options - 
   - option 1 - use [**rename**](#modifying-columns-and-indices) to rename indices
-    ```py
+    ```txt
     months_lookup = { idx + 1: months[idx] for idx in range(12) }
     # {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'}
     
@@ -1358,14 +1358,14 @@ title: Python Data Analysis
     ufo_sightings_by_month_abbrev.plot(kind='bar', title='UFO Sightings by Month')
     ```
   - option 2 - use [**xticks**](#matplotlib). this is useful if we just want to modify plots but it might make testing etc difficult
-    ```py
+    ```txt
     ufo_sightings_by_month.plot(kind='bar', title='UFO Sightings by Month')
     plt.xticks(range(12), labels=months)
     ```
 
   ![](/assets/img/python-data-analysis/ufo-sightings-by-month-abbrev-month-labels.png)
 - by default, bar charts for dataframes looks as follows. understand that pandas is coming with reasonable defaults and helpers. there was so much effort was required from our end when doing this manually using [matplotlib](#matplotlib) - specifying **labels** and **legends**, specifying the **align** property with a negative **width**, etc
-  ```py
+  ```txt
   salaries
   #                    BasePay    OvertimePay  OtherPay
   # EmployeeName
@@ -1378,17 +1378,17 @@ title: Python Data Analysis
   ```
   ![](/assets/img/python-data-analysis/pandas-salaries-default-side-by-side.png)
 - making a stacked version too is so much easier compared to doing it via [matplotlib](#matplotlib) manually by specifying **bottom** / **left** etc
-  ```py
+  ```txt
   salaries.plot(kind='barh', stacked=True)
   ```
   ![](/assets/img/python-data-analysis/pandas-salaries-stacked.png)
 - the usual way - `.plot(kind='hist')`. it creates all graphs in the same axes
-  ```py
+  ```txt
   salaries.plot(kind='hist')
   ```
   ![](/assets/img/python-data-analysis/histogram-using-same-axes.png)
 - calling `.hist()` directly. it creates different **axes** for the different columns - feels like **subplots**
-  ```py
+  ```txt
   salaries.hist()
   ```
   ![](/assets/img/python-data-analysis/histogram-using-different-axes.png)
@@ -1397,23 +1397,23 @@ title: Python Data Analysis
   - the general distribution of data lies between the two **whiskers** (the two standalone blue lines)
   - the **fliers** depict the outliers (the circles). e.g. one house had 33 or so bedrooms, so look at the boxplot
 
-  ```py
+  ```txt
   houses['bedrooms'].plot(kind='box')
   ```
   ![](/assets/img/python-data-analysis/default-box-plot.png)
 - we can view the list of configuration parameters [here](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.boxplot.html). e.g. we can disable the fliers
-  ```py
+  ```txt
   houses[['bedrooms', 'bathrooms']].plot(kind='box', showfliers=False)
   ```
   ![](/assets/img/python-data-analysis/configured-box-plot.png)
 - **scatter plot** - how different variables, e.g. bedrooms and bathrooms correlate to eachother. refer [this](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.scatter.html) for different configuration options
-  ```py
+  ```txt
   houses.plot(kind='scatter', x='bedrooms', y='bathrooms', marker='x', c='#2ca02c')
   ```
   ![](/assets/img/python-data-analysis/scatter-plot-bedrooms-vs-bathrooms.png)
 - adding multiple graphs to the same **axes** on the same **figure** - same as we saw in [matplotlib](#matplotlib) i.e. we need to call **figure** on plt for creating a new figure, else the current active figure is used
 - e.g. - ufo sightings have a shape attribute. find the 5 most common shapes, and plot them on the same axes. use a legend to differentiate between them. plot them for the range 2000-2018
-  ```py
+  ```txt
   common_shapes = ufos['shape'].value_counts().nlargest(5)
 
   for common_shape in common_shapes.index:
@@ -1426,7 +1426,7 @@ title: Python Data Analysis
   ```
   ![](/assets/img/python-data-analysis/ufo-value-counts-by-shape.png)
 - e.g. plot how blinding lights performed on the charts. note how we can specify the x and y attributes when plotting dataframes. also, note how we can invert the y axis - a rank is better when lower, and we want to show a higher rank using a peak / lower rank using a trench
-  ```py
+  ```txt
   billboard_charts = pd.read_csv('/content/drive/MyDrive/Python - Basic Data Analysis/billboard_charts.csv', parse_dates=['date'])
   blinding_lights = billboard_charts[billboard_charts['song'] == 'Blinding Lights']
   
@@ -1436,17 +1436,17 @@ title: Python Data Analysis
   ```
   ![](/assets/img/python-data-analysis/blinding_lights_chart_performance.png)
 - when we try plotting a dataframe, the different columns would be plotted on the same axes by default
-  ```py
+  ```txt
   salaries.plot(kind='hist')
   ```
   ![](/assets/img/python-data-analysis/dataframe-default-without-subplots.png)
 - we can create subplots instead just by passing in keyword arguments
-  ```py
+  ```txt
   salaries.plot(kind='hist', subplots=True)
   ```
   ![](/assets/img/python-data-analysis/dataframe-with-subplots.png)
 - we can configure other parameters like **layout** (the **dimensions**), **sharex** / **sharey**, etc as well, already discussed in [matplotlib](#matplotlib)
-  ```py
+  ```txt
   salaries.plot(kind='hist', subplots=True, layout=(1, 3), figsize=(20, 5), sharex=True, bins=30)
   plt.tight_layout()
   ```
@@ -1455,7 +1455,7 @@ title: Python Data Analysis
   - **subplots** can be called for setting the dimensions of the subplot, setting figure size, etc. it returns both the **figure** and the **axes** created in the process. the axes we receive has the same rows / columns as the dimensions we specify. note that parameters like `sharex` / `sharey` can be passed into this subplots call as well
   - note how we pass in **axes** argument to **plot** of pandas series / dataframe
 
-  ```py
+  ```txt
   months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   
   fig, axes = plt.subplots(2, 3, figsize=(15, 10))
@@ -1496,7 +1496,7 @@ title: Python Data Analysis
   - the labels on x axes was another challenge here, but easy when using **xticks**
   - pandas, matplotlib, etc are smart enough to understand dates even if we specify them like strings - note how we specify strings for dates when using **in between** and setting **xticks**
 
-  ```py
+  ```txt
   years = [2016, 2017, 2018, 2019, 2020]
   christmases = [f'{year}-12-25' for year in years]
   # ['2016-12-25', '2017-12-25', '2018-12-25', '2019-12-25', '2020-12-25']
@@ -1533,7 +1533,7 @@ title: Python Data Analysis
 ## Grouping and Aggregation
 
 - assume i have data for stocks of different cars like below -
-  ```py
+  ```txt
   car_stocks
 
   #    Symbol  Date        Open        High        Low         Close       Adj Close   Volume
@@ -1542,11 +1542,11 @@ title: Python Data Analysis
   # 2  RIVN    2021-11-12  128.645004  135.199997  125.250000  129.949997  129.949997  50437500
   ```
 - to get the mean of a particular stock, i can do the following - 
-  ```py
+  ```txt
   car_stocks[car_stocks['Symbol'] == 'RIVN']['Close'].mean()  # 127.523
   ```
 - but what if i wanted the mean of all of the stocks individually in a dataframe? i can do it as follows
-  ```py
+  ```txt
   car_stocks.groupby('Symbol')['Close'].mean()
 
   # Symbol
@@ -1556,17 +1556,17 @@ title: Python Data Analysis
   # Name: Close, dtype: float64
   ```
 - notice how **groupby** gives us a pandas **data frame group by object**
-  ```py
+  ```txt
   car_stocks.groupby('Symbol')
 
   # <pandas.core.groupby.generic.DataFrameGroupBy object at 0x77f885d61a90>
   ```
 - we can call **ngroups** to see the number of groups - 
-  ```py
+  ```txt
   car_stocks.groupby('Symbol').ngroups  # 3
   ```
 - we can call **groups** to see the actual groups. it is a dictionary, where the keys are the actual keys we used to group, while the values are the **indices** of the rows
-  ```py
+  ```txt
   car_stocks.groupby('Symbol').groups
 
   # {'GM': [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38],
@@ -1574,7 +1574,7 @@ title: Python Data Analysis
   # 'RIVN': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}
   ```
 - iterating over the **dataframe group by object** using a for each group - we get back a tuple of the form group name, dataframe. ofcourse, the dataframe only contains rows belonging to the group. the columns used in the **group by** clause would not be present in the dataframe. use case - useful when the aggregation functions available to us by default are not enough, and we want to run some custom functionality
-  ```py
+  ```txt
   for name, group in car_stocks.groupby('Symbol'):
       print(name)
       print('--------------------')
@@ -1609,7 +1609,7 @@ title: Python Data Analysis
   - when we added a `car_stocks.groupby('Symbol')['Close']`, we got back a **series group by object**
   - we finally called `car_stocks.groupby('Symbol')['Close'].mean()` to get back the mean of closing price for each symbol (i.e. stock)
 - if we would have called mean on the **dataframe group by object** directly, we would have gotten back a **dataframe** - 
-  ```py
+  ```txt
   car_stocks.groupby('Symbol').mean()
   
   #         Open        High        Low
@@ -1623,7 +1623,7 @@ title: Python Data Analysis
   - we then apply a function on each of the parts - e.g. performing a mean on each of these groups individually
   - we finally combine the results from each of these parts - we get back a series containing means for each of the group
 - we can also run multiple aggregation functions at once - below, we run it on both **dataframe group by object** and **series group by object**. running it on the dataframe group by object results in [hierarchical columns](#hierarchical-columns) - 
-  ```py
+  ```txt
   car_stocks.groupby('Symbol')['Close'].agg(['mean', 'min', 'max'])
 
   #         mean        min         max
@@ -1641,7 +1641,7 @@ title: Python Data Analysis
   # RIVN    127.710000  106.750000  163.800003  135.309230  114.500000  179.470001  119.150000  95.199997  153.779999
   ```
 - we can go more granular as well - we can run specific aggregation functions for specific columns as well - 
-  ```py
+  ```txt
   car_stocks.groupby('Symbol').agg({ 'Open': ['min', 'max'],  'Close': ['mean'] })
 
   #         Open                    Close
@@ -1652,7 +1652,7 @@ title: Python Data Analysis
   # RIVN    106.750000  163.800003  127.523077
   ```  
 - we can provide custom functions to agg as well - understand that this could very well have been a function from a library, and we would just have to pass its reference - 
-  ```py
+  ```txt
   def range(x):
       return x.max() - x.min()
   
@@ -1665,7 +1665,7 @@ title: Python Data Analysis
   ```
 - x is a **pandas series**, and range is called for every group - for all open prices for a particular stock, one at a time
 - another example - this time, our custom aggregation function is called for multiple attributes, but everything is still the same. just that the output changes from a series to a dataframe, but the aggregation function is still called on a per attribute, per group basis
-  ```py
+  ```txt
   def count_nulls(x):
       return len(x) - x.count()
   
@@ -1678,7 +1678,7 @@ title: Python Data Analysis
   # 3       0         208  0
   ```
 - **named aggregations** - we just saw nested columns above, when we try to do multiple aggregations on multiple columns at once. this can make accessing data more complicated, since we would have to use [hierarchical columns](#hierarchical-columns). in general, we might want to give a custom name to the result of our aggregation. we can do so using **named aggregations** - 
-  ```py
+  ```txt
   car_stocks.groupby('Symbol').agg(
       close_avg=('Close', 'mean'),
       close_max=('Close', 'max'),
@@ -1699,7 +1699,7 @@ title: Python Data Analysis
   - we calculate accuracy using these two
   - finally, we sort the data based on accuracy
 
-  ```py
+  ```txt
   team_stats = laliga.groupby('Team').agg(
       total=('Shots', 'sum'),
       on_target=('Shots on target', 'sum')
@@ -1722,7 +1722,7 @@ title: Python Data Analysis
   - note how we pass the axes received from **subplots** to **plot**
   - we can set the xticks on (any) axes i guess
 
-  ```py
+  ```txt
   fig, axes = plt.subplots(2, 1, sharex=True)
 
   team_stats.tail(5).plot(kind='barh', y='accuracy', ax=axes[0], legend=False, title='Most Accurate Teams', color='green')
@@ -1733,7 +1733,7 @@ title: Python Data Analysis
   plt.tight_layout()
   ```
 - we discuss [hierarchical indexing](#hierarchical-indexing) next, but we can group by levels of hierarchical indices as well. we need to specify the **levels** **keyword argument** for that
-  ```py
+  ```txt
   state_pops
 
   #              population
@@ -1757,7 +1757,7 @@ title: Python Data Analysis
   ```
 - note - we specify name in this case, but we could have specified the **level** - 0, 1 etc as well
 - if we see, the components of the **hierarchical index** are **named**, so specifying their names directly without the level keyword argument inside of groupby would have worked as well
-  ```py
+  ```txt
   state_pops.groupby('year').sum()
 
   # year  
@@ -1777,7 +1777,7 @@ title: Python Data Analysis
 
 - also called **multi indexing**
 - when we group by a single column, we get the following result - 
-  ```py
+  ```txt
   mean_by_sex = titanic.groupby('sex')['age'].mean()
 
   mean_by_sex.index
@@ -1791,7 +1791,7 @@ title: Python Data Analysis
   # male      30.585233
   ```
 - however, when we group by multiple columns, we get the following result - 
-  ```py
+  ```txt
   mean_by_pclass_and_sex = titanic.groupby(['pclass', 'sex'])['age'].mean()
 
   mean_by_pclass_and_sex.index
@@ -1816,7 +1816,7 @@ title: Python Data Analysis
   ```
 - so, labels instead of being a plain **index** are now **multi index**
 - above, we showed a multi index with a **series**, below is an example of a **multi index** with a **dataframe**. the index in this case is the same as the one we got when doing a mean of age, only the entire data structure changes from a series to a dataframe
-  ```py
+  ```txt
   titanic.groupby(['pclass', 'sex']).mean(numeric_only=True)
 
   #                 survived  age        sibsp     parch     fare
@@ -1832,7 +1832,7 @@ title: Python Data Analysis
   - be unique - having the same index for multiple rows in a dataframe does not give an error. but, it is typically not advisable - e.g. [**loc**](#indexing) would give us multiple rows
   - make our data easily accessible - use for e.g. semantic index / natural key
 - imagine we have the following dataframe - 
-  ```py
+  ```txt
   state_pops = pd.read_csv('data/state_pops.csv')
   state_pops
 
@@ -1844,7 +1844,7 @@ title: Python Data Analysis
   # 1271  USA    2012  313873685.0
   ```
 - we can set up a [custom](#index) **hierarchical index** for this dataset
-  ```py
+  ```txt
   state_pops.set_index(['state', 'year'], inplace=True)
   state_pops
 
@@ -1858,7 +1858,7 @@ title: Python Data Analysis
   #        2010  309326295.0
   ```
 - if we try [sorting the index](#sorting), by default, the data is sorted in the order of **levels** - e.g. the data is sorted first by state, and for a state, the rows are sorted by years
-  ```py
+  ```txt
   state_pops.sort_index()
 
   #              population
@@ -1871,7 +1871,7 @@ title: Python Data Analysis
   #        2011  567329.0
   ```
 - assume we want to sort the data by years only. so, all the data for the lowest year should come first and so on. we can do the below - 
-  ```py
+  ```txt
   state_pops.sort_index(level=1)
 
   #             population
@@ -1883,7 +1883,7 @@ title: Python Data Analysis
   # WY    2013  582658.0
   ```
 - finally, assume we would like to sort in ascending order of state but then descending order of year. we can do the below - 
-  ```py
+  ```txt
   state_pops.sort_index(level=[0, 1], ascending=[True, False])
 
   #              population
@@ -1897,7 +1897,7 @@ title: Python Data Analysis
 - finally - we were using numbers for levels till now, but names are supported as well - e.g. we can use `state_pops.sort_index(level=['year'], inplace=True)`
 - **indexing** - behavior around slicing etc is pretty similar to what we studied [here](#indexing), just that we need to be wary of **levels**
 - accessing by the first level only - we get back a **dataframe**, and not a **series**
-  ```py
+  ```txt
   state_pops.loc['WY']
 
   #       population
@@ -1907,13 +1907,13 @@ title: Python Data Analysis
   # 1992  466251.0
   ```
 - accessing by all levels - we get back a series, where the indices are the columns. we need to provide a **tuple** with the values for all the levels.
-  ```py
+  ```txt
   state_pops.loc[('WY', 2013)]
 
   # population    582658.0
   ```
 - note - we can still use **slicing** etc when using tuples - 
-  ```py
+  ```txt
   state_pops.loc[('WY', 2010) : ('WY', 2013)]
 
   #              population
@@ -1925,7 +1925,7 @@ title: Python Data Analysis
   ```
 - till now, we saw accessing using the 1st level and all levels. what if we would like to access using some intermediate level(s)?
 - first, recall from [updating](#updating-values), if we have a normal dataframe without the hierarchical indexing, we would use **loc** as follows (remember that `:` by itself means everything - all indices / all columns depending on where it is used) - 
-  ```py
+  ```txt
   titanic
   #    pclass  survived
   # 0  1       1
@@ -1950,7 +1950,7 @@ title: Python Data Analysis
   # 2  1       0
   ```
 - so, extending on the above for a **dataframe** with **hierarchical indexing**, my understanding is we will need extra commas for the extra levels. so, back to our original question of how to access using selective levels when we have hierarchical indexing - we can for e.g. just use `:` for the levels for which we want everything, and specify singular values using `a`, specify ranges like `a:b`, specify selected values using `[a,b]` etc based on use case
-  ```py
+  ```txt
   state_pops.loc[:,:,]
   #             population
   # state year
@@ -2007,7 +2007,7 @@ title: Python Data Analysis
 - for accessing all values of a column, we use the syntax `df['col_name']`, but this would not work for index column(s)
 - to access the [values of an index](#series-and-columns) when a dataframe does not have hierarchical indexing, we use `df.index`
 - what if we wanted to access the components of a **hierarchical index**? assume our dataframe looks like this -
-  ```py
+  ```txt
   #              population
   # state  year
   # AK     1990  553290.0
@@ -2019,14 +2019,14 @@ title: Python Data Analysis
   #        2011  567329.0
   ```
 - to access the index values of a particular position, we can use the following - 
-  ```py
+  ```txt
   state_pops.index[0]  # ('AK', 1990)
   state_pops.index[1]  # ('AK', 1991)
   state_pops.index[2]  # ('AK', 1992)
   ```
 - to access all the index values, we have two options according too my understanding - 
 - option 1 - access via the **levels** property. but, it will only have the unique values - it would not be an accurate representation of our data
-  ```py
+  ```txt
   state_pops.index.levels
   # FrozenList([['AK', 'AL', 'AR', 'AZ', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'HI', 'VT', 'WA', 'WI', 'WV', 'WY'],
   #             [1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013]]
@@ -2040,7 +2040,7 @@ title: Python Data Analysis
   #        2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013],
   ```
 - option 2 - accessing via **get level values**. usecase - recall how we performed [filtering](#filtering) using column attributes - `df[df['col'] > 500]`. we can do the same when using option 2. our conditions will look like this now - `df[df.index.get_level_values(1) > 500]`
-  ```py
+  ```txt
   state_pops.index.get_level_values(0)
   # Index(['AK', 'AK', 'AK', 'AK', 'AK', 'AK', 'AK', 'AK', 'AK', 'AK',
   #        ...
@@ -2057,7 +2057,7 @@ title: Python Data Analysis
 ### Hierarchical Columns
 
 - we typically work with them when we use [groupings and aggregations](#grouping-and-aggregation) without for e.g. flattening them using **named aggregations**. assume we have created the following dataframe -
-  ```py
+  ```txt
   titanic_stats = titanic.groupby(['pclass', 'sex']).agg({ 
       'fare': ['sum', 'mean'],
       'age': ['min', 'max', 'mean']
@@ -2075,7 +2075,7 @@ title: Python Data Analysis
   #         male    9060.8333  25.962273  0.3333  74.0  25.962273
   ```
 - now, if we try inspecting the **columns** property of the **dataframe**, we see the below -
-  ```py
+  ```txt
   titanic_stats.columns
   # MultiIndex([('fare',  'sum'),
   #             ('fare', 'mean'),
@@ -2085,7 +2085,7 @@ title: Python Data Analysis
   #            )
   ```
 - to access the individual columns, we can access them using the two options below. recall that when we try accessing a column, we get back a series - the labels of this series is the same as the original dataframe (which in this case is a **hierarchical index**), while the values of the series are the values of the column. note - the second option is preferred / more efficient i think, because we access the desired data in one go -
-  ```py
+  ```txt
   titanic_stats['fare']['sum']  # option 1
   titanic_stats[('fare', 'sum')]  # option 2
 
@@ -2102,7 +2102,7 @@ title: Python Data Analysis
 
 - helps pivot the index to columns. if we do not specify the level, the **largest** / **innermost** level is used
 - assume we have the following **series** - 
-  ```py
+  ```txt
   titanic_age_stats = titanic.groupby(['pclass', 'sex'])['age'].mean()
   titanic_age_stats
 
@@ -2115,12 +2115,12 @@ title: Python Data Analysis
   #         male    25.962273
   ```
 - when we try plotting it, we get the following. recollection of how ploting of pandas **series** works by default - x axis is the **index** (which is **hiearchical index** / **multi index** in this case), y axis is the values
-  ```py
+  ```txt
   titanic_age_stats.plot(kind='bar')
   ```
   ![](/assets/img/python-data-analysis/plotting-hierarchical-index-without-unstack.png)
 - when we unstack without any arguments, the below is what happens - the innermost level of sex becomes a column
-  ```py
+  ```txt
   titanic_age_stats.unstack()
 
   # sex     female    male
@@ -2130,12 +2130,12 @@ title: Python Data Analysis
   # 3       22.185307  25.962273
   ```
 - now when we try plotting this, we get the below. recollection of how plotting for a dataframe works - we get a bar for every attribute for every index. the values of these attributes is the y axis, the labels are the x axis
-  ```py
+  ```txt
   titanic_age_stats.unstack().plot(kind='bar')
   ```
   ![](/assets/img/python-data-analysis/plotting-hierarchical-index-with-unstack.png)
 - we can also specify the **level** we would like to unstack using - 
-  ```py
+  ```txt
   titanic_age_stats.unstack(level='pclass')
 
   # pclass  1          2          3
@@ -2148,7 +2148,7 @@ title: Python Data Analysis
   ![](/assets/img/python-data-analysis/plotting-hierarchical-index-with-custom-unstack.png)
 - note, my understanding - we have till now performed **unstack** on a **series** with **hierarchical index**. this results in a  **dataframe**, where the column is the level that we unstack, and a **level** from the **hierarhcical index** is removed
 - complicating things because i am bored - when we try unstacking a **dataframe** with **hierarchical columns** - we get an additional level of **hierarchical columns**
-  ```py
+  ```txt
   titanic_age_stats = titanic.groupby(['pclass', 'sex']).agg({
       'age': ['min', 'max', 'mean']
   })
@@ -2178,7 +2178,7 @@ title: Python Data Analysis
 - by default, pandas assigns type object to columns if they cannot be assigned numeric data types. object data type encompasses strings, numbers, arrays, etc everything
 - my understanding - even if a column is of type object, we can access string methods on it. the other option i believe is to convert it to string type first using [**astype**](#data-types)
 - we can access string methods using **str**
-  ```py
+  ```txt
   titanic['name'].str.lower()
 
   # 0      allen, miss. elisabeth walton
@@ -2188,7 +2188,7 @@ title: Python Data Analysis
   # 1308              zimmerman, mr. leo
   ```
 - understand that we just used lower on the column, but pandas was smart enough to apply it to the entire series. this is also applicable to **string indexing**. e.g. the cabin column looks like below - it is a combination of deck and cabin number, and we make a new column just for deck as follows
-  ```py
+  ```txt
   titanic['cabin']
 
   # 0       B5
@@ -2205,7 +2205,7 @@ title: Python Data Analysis
   ```
 - we can use slicing etc as well
 - **strip** - strips whitespaces by default
-  ```py
+  ```txt
   s = pd.Series(['1. Hawk.   ', '2. Pickle!\n', '3. Melonhead?\t'])
   s
 
@@ -2223,7 +2223,7 @@ title: Python Data Analysis
   - specify the characters to strip using the **to_strip** parameter
   - it also has different versions - **lstrip** and **rstrip** to only strip from beginning / end
 - **split** - split strings into components. by default, the output would be a list for every string
-  ```py
+  ```txt
   titanic['home.dest'].str.split('/')
 
   # 0                      [St Louis, MO]
@@ -2233,7 +2233,7 @@ title: Python Data Analysis
   # 4  [Montreal, PQ ,  Chesterville, ON]
   ```
 - we can make each element its own **series** / **column** by setting the **expand** option to true
-  ```py
+  ```txt
   titanic['home.dest'].str.split('/', expand=True)
 
   #    0             1                 2
@@ -2245,7 +2245,7 @@ title: Python Data Analysis
   - a regex instead of a normal sring to split based on
   - we can specify the maximum limit i.e. the maximum number of columns the split should go upto. no more splits would be created, and everything would be put into the last column
 - **replace** - we have already seen [replace](#modifying-columns-and-indices), but this is the replace method available for string data type
-  ```py
+  ```txt
   ufos['duration']
   # 0    5 seconds
   # 1  3-5 seconds
@@ -2262,7 +2262,7 @@ title: Python Data Analysis
 - **contains** - returns a boolean
 - again instead of a plain string, we can pass in a regex to match as well
 - a complex example - imagine the movies in our dataset have a "genres" column, which are separated by pipes. we can find the genre value counts as follows using **explode** - 
-  ```py
+  ```txt
   movies['genres']
 
   # 0   Animation|Comedy|Family
@@ -2282,7 +2282,7 @@ title: Python Data Analysis
 ## Apply and Map
 
 - **apply** - run on every value of the **series**
-  ```py
+  ```txt
   titanic['age']
   # 0  29.0000
   # 1   0.9167
@@ -2298,7 +2298,7 @@ title: Python Data Analysis
   # 4                (25.0, 9125.0)
   ```
 - in case our function requires arguments, we can pass them as so - 
-  ```py
+  ```txt
   titanic['fare']
 
   # 0  211.3375
@@ -2315,7 +2315,7 @@ title: Python Data Analysis
   # 2    $3485.65
   ```
 - till now, we saw **apply** for **series**. when using **apply** on a **dataframe**, it will call the function for all **columns** by default. so, if we return back one value per column, we get back a **series**, where the labels are column names
-  ```py
+  ```txt
   titanic[['age', 'fare', 'pclass']].apply(lambda col: col.max() - col.min())
 
   # age        79.8333
@@ -2323,12 +2323,12 @@ title: Python Data Analysis
   # pclass      2.0000
   ```
 - we can change it to be called for all **rows** instead. usecase - we have a complex calculation that involves multiple columns of the row. e.g. we have two columns, representing (number of siblings and spouses) and (number of parents and children) respectively. we can get the family size by adding the two. we need to pass in the **axis** argument, which is **index** by default
-  ```py
+  ```txt
   titanic['relatives'] = titanic.apply(lambda row: row['sibsp'] + row['parch'], axis='columns')
   ```
 - note - doing `titanic['relatives'] = titanic['sibsp'] + titanic['parch']` would also have worked in this case
 - **map** (for **series**) - we pass it a dictionary, and it will replace any values matching the key of the dictionary with the value for that key
-  ```py
+  ```txt
   titanic['pclass']
   
   # 0       1
@@ -2347,7 +2347,7 @@ title: Python Data Analysis
   ```
 - we can also pass a function to **map**, and **map** and **apply** will work in the same way in this case
 - when we use **map** on **dataframes**, the function is run on all cells of the **dataframe**. recall how **apply** was only run along one of the axis - so, the function was either passed the entire row or the entire column
-  ```py
+  ```txt
   titanic[['name', 'home.dest']]
 
   #    name                            home.dest
@@ -2368,7 +2368,7 @@ title: Python Data Analysis
 ### Concat
 
 - **concat** - concatenate series / dataframes
-  ```py
+  ```txt
   import pandas as pd
 
   s1 = pd.Series(['a', 'b', 'c'])
@@ -2383,7 +2383,7 @@ title: Python Data Analysis
   # 2    f
   ```
 - we can set **ignore index** to true if our index was not semantic. notice the difference in the index values above and below
-  ```py
+  ```txt
   pd.concat([s1, s2], ignore_index=True)
   # 0    a
   # 1    b
@@ -2393,7 +2393,7 @@ title: Python Data Analysis
   # 5    f
   ```
 - we can concatenate **by index** follows - 
-  ```py
+  ```txt
   pd.concat([s1, s2], axis='columns')
   #   0 1
   # 0 a d
@@ -2401,7 +2401,7 @@ title: Python Data Analysis
   # 2 c f
   ```
 - however, this is not just putting side by side - it is actually using the index values to join. e.g. - 
-  ```py
+  ```txt
   food = pd.Series(
       data=['avocado', 'blueberry', 'cucumber'],
       index=['a', 'b', 'c']
@@ -2421,7 +2421,7 @@ title: Python Data Analysis
   # d  NaN        dolphin
   ```
 - notice the column names would be numeric by default. we can change that using the **keys** keyword argument
-  ```py
+  ```txt
   pd.concat([food, animals], axis='columns', keys=['khana', 'janwar'])
 
   #    khana      janwar
@@ -2431,7 +2431,7 @@ title: Python Data Analysis
   # d  NaN        dolphin
   ```
 - note - we saw NaN earlier, because the join is **outer** by default. we can set it to **inner** as well
-  ```py
+  ```txt
   pd.concat([food, animals], axis='columns', join='inner')
 
   #    0          1
@@ -2439,7 +2439,7 @@ title: Python Data Analysis
   # c  cucumber   chameleon
   ```    
 - till now, we were combining **series**. now, we combine **dataframes**. assume we have the data below - 
-  ```py
+  ```txt
   harvest_21 = pd.DataFrame(
       [['potatoes', 9001], ['garlic', 1350], ['onions', 87511]],
       columns=['crop', 'qty']
@@ -2460,7 +2460,7 @@ title: Python Data Analysis
   # 3  1000  onions
   ```
 - when we try to concatenate the two dataframes, we get the below. note - even though the ordering of columns for the two dataframes were different, pandas combines them using the column names
-  ```py
+  ```txt
   pd.concat([harvest_21, harvest_22])
   #    crop      qty
   # 0  potatoes  9001
@@ -2472,7 +2472,7 @@ title: Python Data Analysis
   # 3  onions    1000
   ```
 - assume we have another dataframe with an extra column - 
-  ```py
+  ```txt
   harvest_23 = pd.DataFrame(
       [['potatoes', 900, 500], ['garlic', 1350, 1200], ['onions', 875, 950]],
       columns=['crop', 'qty', 'profit']
@@ -2483,7 +2483,7 @@ title: Python Data Analysis
   # 2  onions    875   950
   ```
 - if we now try concatenating two dataframes with difference in columns, we get NaN for the missing columns
-  ```py
+  ```txt
   pd.concat([harvest_22, harvest_23])
   #    qty   crop      profit
   # 0  1600  garlic    NaN
@@ -2495,7 +2495,7 @@ title: Python Data Analysis
   # 2  875   onions    950.0
   ```
 - to change this behavior, we can specify **inner** for the join type
-  ```py
+  ```txt
   pd.concat([harvest_22, harvest_23], join='inner')
   #    qty   crop
   # 0  1600  garlic
@@ -2508,7 +2508,7 @@ title: Python Data Analysis
   ```
 - the **ignore index** parameter behaves in the same way, already discussed
 - we can also set up **hierarchical indexing** using the **keys** parameter - e.g. it is typical to analyze files for different years simultaneously, and we might want to encode this information in the form of a hierarchical index for the dataframe
-  ```py
+  ```txt
   pd.concat([harvest_21, harvest_22, harvest_23], join='inner', keys=[2021, 2022, 2023])
   #          crop      qty
   # 2021  0  potatoes  9001
@@ -2526,7 +2526,7 @@ title: Python Data Analysis
 ### Merge
 
 - its closer to a database style join and is more flexible than [**concat**](#concat) since we can combine using columns instead of relying on the index
-  ```py
+  ```txt
   teams = pd.DataFrame(
       [
           ["Suns", "Phoenix", 20, 4], 
@@ -2558,7 +2558,7 @@ title: Python Data Analysis
   # 3  Dallas     Texas       1310000
   ```
 - now, if we perform a merge, an inner join is performed using the common column name automatically - 
-  ```py
+  ```txt
   teams.merge(cities)
   #    team       city     wins  losses  state    population
   # 0  Suns       Phoenix  20    4       Arizona  1630000
@@ -2566,7 +2566,7 @@ title: Python Data Analysis
   # 2  Rockets    Houston  7     16      Texas    2310000
   ```
 - we can set the **how** parameter for join type. as we saw, it is **inner** by default, but we can set it to **outer**, **left**, **right**, etc
-  ```py
+  ```txt
   teams.merge(cities, how='left')
 
   #    team       city     wins  losses  state    population
@@ -2577,12 +2577,12 @@ title: Python Data Analysis
   ```
 - cross join is also there - all rows of one dataframe with all rows of the other dataframe
 - by default, the same column name was used explicitly. we can however, specify the column(s) explicitly using the **on** keyword argument
-  ```py
+  ```txt
   teams.merge(cities, on='city')
   ```
 - note - we can specify multiple columns for the on parameter as well based on use case
 - what if the two dataframes have similar column names, and are not being used for joining? pandas will suffix them with _x and _y by default. e.g. below, the name column is being used for the join, so it is only present once. however, the score column is not, and therefore it is preset with a suffix
-  ```py
+  ```txt
   midterm = pd.DataFrame(
       [['shameek', 42], ['colt', 45]],
       columns=['name', 'score']
@@ -2600,7 +2600,7 @@ title: Python Data Analysis
   # 1  colt     45       97
   ```
 - we can however, specify the **suffixes** to append - 
-  ```py
+  ```txt
   midterm.merge(final, on='name', suffixes=['_midterm', '_final'])
 
   #    name     score_midterm  score_final
@@ -2615,11 +2615,11 @@ title: Python Data Analysis
 
 - uses [matplotlib](#matplotlib) underneath, and works well with pandas
 - typically imported as sns
-  ```py
+  ```txt
   import seaborn as sns
   ```
 - to play around with seaborn, we can use any of the datasets present [here](https://github.com/mwaskom/seaborn-data) via **load dataset**. it returns the pandas dataframe
-  ```py
+  ```txt
   tips = sns.load_dataset('tips')
   tips
 
@@ -2629,40 +2629,40 @@ title: Python Data Analysis
   # 2  21.01       3.50  Male    No      Sun  Dinner  3
   ```
 - note - for the default theme of sns to kick in which kind of looks good, run the following
-  ```py
+  ```txt
   sns.set_theme()
   ```
 - for a scatterplot, we can do the following - 
-  ```py
+  ```txt
   sns.scatterplot(tips, x='total_bill', y='tip')
   ```
   ![](/assets/img/python-data-analysis/seaborn-getting-started.png)
 - note - the exact above result could have been achieved without seaborn as well - 
-  ```py
+  ```txt
   tips.plot(kind='scatter', x='total_bill', y='tip')
   ```
 - but, now, look how we can simply pass **hue** for different scatter plots based on color on the same axes - 
-  ```py
+  ```txt
   sns.scatterplot(tips, x='total_bill', y='tip', hue='sex')
   ```
   ![](/assets/img/python-data-analysis/seaborn-scatter-plot-with-hue.png)
 - further, we can pass in **style** for different scatter plots based on marker on the same axes
-  ```py
+  ```txt
   sns.scatterplot(tips, x='total_bill', y='tip', hue='sex', style='smoker')
   ```
   ![](/assets/img/python-data-analysis/seaborn-scatter-plot-with-hue-and-style.png)
 - note - if we use the same column for **hue** and **style**, the marker and color both change, thus maybe improving readability
-  ```py
+  ```txt
   sns.scatterplot(tips, x='total_bill', y='tip', hue='sex', style='sex')
   ```
   ![](/assets/img/python-data-analysis/seaborn-scatter-plot-with-same-column-for-hue-and-style.png)
 - e.g. assume tips have a size column, which represents the number of people together. we can add the **size** keyword argument, which changes the size of the marker
-  ```py
+  ```txt
   sns.scatterplot(tips, x='total_bill', y='tip', size='size')
   ```
   ![](/assets/img/python-data-analysis/seaborn-scatter-plot-with-size.png)
 - assume we have a dataset for flights like so i.e. we have 12 records per year for each of the months - 
-  ```py
+  ```txt
   flights = sns.load_dataset('flights')
   flights
 
@@ -2672,26 +2672,26 @@ title: Python Data Analysis
   # 2  1949  Mar    132
   ```
 - e.g. we try to create a lineplot below. but, we do not specify how it should plot the multiple records that it gets for a passenger in a year. it plots using the **estimator** as **mean** by default
-  ```py
+  ```txt
   sns.lineplot(flights, x='year', y='passengers')
   ```
   ![](/assets/img/python-data-analysis/seaborn-line-plot-default.png)
 - if we wanted to achieve this ourselves using matplotlib, we would have to group it and then use the aggregation function like below -
-  ```py
+  ```txt
   flights.groupby('year')['passengers'].mean().plot()
   ```
   ![](/assets/img/python-data-analysis/seaborn-line-plot-matplotlib-equivalent.png)
 - estimators are pandas functions. we can also provide a custom estimator, e.g. `sum` as so - 
-  ```py
+  ```txt
   sns.lineplot(flights, x='year', y='passengers', estimator='sum')
   ```
   ![](/assets/img/python-data-analysis/seaborn-line-plot-default-with-estimator.png)
 - note how there is also a **confidence interval** that seaborn also adds to the plot. we can control its width, method, etc using **error bar**. setting it to None would remove it completely
-  ```py
+  ```txt
   sns.lineplot(flights, x='year', y='passengers', estimator='sum', errorbar=None)
   ```
 - my understanding - seaborn has two kinds of plots - **figure level plots** and **axes level plots**. the ones we saw above - **lineplot** and **scatterplot** are **axes level plots** their corresponding **figure level plot** is **relplot** or **relational plot**
-  ```py
+  ```txt
   # initial
   sns.scatterplot(data=tips, x='total_bill', y='tip')
 
@@ -2700,7 +2700,7 @@ title: Python Data Analysis
   ```
 - but now, we can easily put different subplots / different axes on the same figure
 - e.g. assume we would like to have different columns for the different values of sex
-  ```py
+  ```txt
   sns.relplot(data=tips, x='total_bill', y='tip', row='time', col='sex', hue='smoker')
   ```
   ![](/assets/img/python-data-analysis/seaborn-relplot-introduction.png)
@@ -2709,17 +2709,17 @@ title: Python Data Analysis
   - rows using time - lunch or dinner
   - different colors for smokers and non smokers
   
-  ```py
+  ```txt
   sns.relplot(data=tips, x='total_bill', y='tip', row='time', col='sex', hue='smoker')
   ```
   ![](/assets/img/python-data-analysis/seaborn-relplot-involved-example.png)
 - controlling figure size for **axes level plots** - we make the figure call first
-  ```py
+  ```txt
   plt.figure(figsize=(4, 3))
   sns.scatterplot(data=tips, x='total_bill', y='tip')
   ```
 - controlling figure size for **figure level plots** - relplot creates a figure for us bts, so we cannot call the figure ourselves. instead, we control size of each **facet** i.e. subplot using **height** and **aspect** (ratio between height and width)
-  ```py
+  ```txt
   sns.relplot(data=tips, x='total_bill', y='tip', row='time', col='sex', hue='smoker', height=3, aspect=2)
   ```
 
@@ -2728,65 +2728,65 @@ title: Python Data Analysis
 - [**relation plots**](#relational-plots) - relation between two things x and y
 - **distribution plots** - distribution of data, e.g. histogram
 - histogram example - assume we try to visualize the tips dataset - 
-  ```py
+  ```txt
   sns.histplot(data=tips, x='tip')
   ```
   ![](/assets/img/python-data-analysis/seaborn-histogram-introduction.png)
 - if we use **hue**, by default, they would come one on top of another. the opacity is such that they are see through - 
-  ```py
+  ```txt
   sns.histplot(data=tips, x='tip', hue='smoker')
   ```
   ![](/assets/img/python-data-analysis/seaborn-histogram-with-hue.png)
 - we can configure it to be **stacked** instead of appearing one on top of another
-  ```py
+  ```txt
   sns.histplot(data=tips, x='tip', hue='smoker', multiple='stack')
   ```
   ![](/assets/img/python-data-analysis/seaborn-histogram-with-hue-and-multiple.png)
 - we can also set multiple to be **dodge**, so that appear one beside another. note how i also configure **bins** in this case
-  ```py
+  ```txt
   sns.histplot(data=tips, x='tip', hue='smoker', multiple='dodge', bins=5)
   ```
   ![](/assets/img/python-data-analysis/seaborn-histogram-with-hue-and-multiple-dodge.png)
 - finally, we can add the **kde curve** to the histogram plot as well by setting kde to true
-  ```py
+  ```txt
   sns.histplot(data=tips, x='tip', hue='smoker', kde=True)
   ```
   ![](/assets/img/python-data-analysis/seaborn-histogram-with-kde.png)
 - above, we ovrlayed the **kde curve** on top of the histogram. however, we can add a standalone **kde curve** as well. below, we try to visualize the weights of different species of penguins simultaneously
-  ```py
+  ```txt
   sns.kdeplot(data=penguins, x='body_mass_g', hue='species')
   ```
   ![](/assets/img/python-data-analysis/seaborn-kde-introduction.png)
 - finally, we can also configure the precision by **adjusting the bandwidth**
-  ```py
+  ```txt
   sns.kdeplot(data=penguins, x='body_mass_g', hue='species', bw_adjust=0.4)
   ```
   ![](/assets/img/python-data-analysis/seaborn-kde-with-bandwidth-adjustment.png)
 - **histograms** / **kde plots** are also called as **univariate distribution plots** i.e. we only look at the distribution of a single feature
 - we can look at **bivariate distribution plots** as well i.e. analyze two features at once, both on x and y axis
 - **kde bivariate distribution plots** - try looking for smoother curves (like the hollow i believe?)
-  ```py
+  ```txt
   sns.kdeplot(data=penguins, x='bill_length_mm', y='flipper_length_mm', hue='species')
   ```
   ![](/assets/img/python-data-analysis/seaborn-bivariate-kde-plot.png)
 - **histogram bivariate distribution plots** - try looking for the concentrated coloring (like a heat map)
-  ```py
+  ```txt
   sns.histplot(data=penguins, x='bill_length_mm', y='flipper_length_mm', hue='species')
   ```
   ![](/assets/img/python-data-analysis/seaborn-bivariate-histogram-plot.png)
 - **rugplots** - ticks along the x or y axis to show the presence of an observation
-  ```py
+  ```txt
   sns.rugplot(data=penguins, x='body_mass_g')
   ```
   ![](/assets/img/python-data-analysis/seaborn-rugplot-basics.png)
 - this is not very useful by itself. because rugplots are useful when used with other plots. e.g. below, from our scatterplot, it is difficult to find out where the majority of the values lie, so we supplement it with a rugplot
-  ```py
+  ```txt
   sns.scatterplot(data=diamonds, x='carat', y='price', s=2)
   sns.rugplot(data=diamonds, x='carat', y='price', alpha=0.005)
   ```
   ![](/assets/img/python-data-analysis/seaborn-rugplot-supplementing-scatterplot.png)
 - we use **displot** for the **figure level plot** of distibution plots, no surprises here
-  ```py
+  ```txt
   sns.displot(data=penguins, kind='kde', x='body_mass_g', col='species', row='island', height=2, aspect=2, hue='sex')
   ```
   ![](/assets/img/python-data-analysis/seaborn-displot-example.png)
@@ -2794,27 +2794,27 @@ title: Python Data Analysis
 ### Categorical Plots
 
 - **count plot** - displays count. but unlike **histograms** which typically used for numerical data, **count plots** are typically used for non numerical data
-  ```py
+  ```txt
   sns.countplot(data=penguins, x='species', hue='sex')
   ```
   ![](/assets/img/python-data-analysis/seaborn-countplot-introduction.png)
 - to achieve something similar when using matplotlib by itself, i did the following - 
-  ```py
+  ```txt
   penguins[['species', 'sex']].value_counts().unstack('sex').plot(kind='bar')
   ```
   ![](/assets/img/python-data-analysis/seaborn-countplot-simulation-using-matplotlib.png)
 - issue - if we tried to make a **scatterplot** for categorical data - it would be hard to comment on the density - 
-  ```py
+  ```txt
   sns.scatterplot(data=titanic, x='pclass', y='age')
   ```
   ![](/assets/img/python-data-analysis/seaborn-scatterplot-for-categorical-data.png)
 - solution 1 - we can use **stripplot** - it introduces a little bit of **jitter** to improve readability - 
-  ```py
+  ```txt
   sns.stripplot(data=titanic, x='pclass', y='age')
   ```
   ![](/assets/img/python-data-analysis/seaborn-stripplot-example.png)
 - solution 2 - we can use **swarmplot** - it ensures points are **non overlapping** to improve readability. my understanding - use this only for smaller / sampled datasets, otherwise achieving this can become difficult
-  ```py
+  ```txt
   plt.figure(figsize=(10, 4))
   sns.swarmplot(data=titanic, x='pclass', y='age')
   ```
@@ -2828,44 +2828,44 @@ title: Python Data Analysis
   - the lines surrounding iqr are called **whiskers**. they are placed relative to q1 and q3, and default to 1.5 i believe
   - finally, we have **outliers** outside these whiskers
   
-  ```py
+  ```txt
   sns.boxplot(data=titanic, x='age')
   ```
   ![](/assets/img/python-data-analysis/seaborn-boxplot.png)
 - using boxplot for categorical data - 
-  ```py
+  ```txt
   sns.boxplot(data=titanic, x='pclass', y='age', hue='sex')
   ```
   ![](/assets/img/python-data-analysis/seaborn-boxplot-for-catgeories.png)
 - combining boxplot and swarmplot. small reminder from [matplotlib](#matplotlib) that they go into the same figure and axes since we do not call a `plt.figure()` in between 
-  ```py
+  ```txt
   sns.boxplot(data=penguins, y='body_mass_g', x='species')
   sns.swarmplot(data=penguins, y='body_mass_g', x='species', color='black')
   ```
   ![](/assets/img/python-data-analysis/seaborn-boxplot-and-swarmplot.png)
 - **violin plot** - has the **box plot** at the center along with the **kde curve**. carefully look at the black line to see the median, inter quartile range and whiskers
-  ```py
+  ```txt
   sns.violinplot(data=titanic, x='pclass', y='age')
   ```
   ![](/assets/img/python-data-analysis/seaborn-violinplot-introduction.png)
 - note - if we add a hue, it creates different violin plots side by side
-  ```py
+  ```txt
   sns.violinplot(data=titanic, x='pclass', y='age', hue='sex')
   ```
   ![](/assets/img/python-data-analysis/seaborn-violinplot-with-hue-without-split.png)
 - we can however, change this behavior by providing the **split** parameter
-  ```py
+  ```txt
   sns.violinplot(data=titanic, x='pclass', y='age', hue='sex', split=True)
   ```
   ![](/assets/img/python-data-analysis/seaborn-violinplot-with-hue-and-split.png)
 - **bar plot** - again, compare the difference from [matplotib](#matplotlib), where there is no calculation - it just plots, while seaborn grouping and using an **estimator** like we saw in [**line plots**](#relational-plots)
-  ```py
+  ```txt
   sns.barplot(data=titanic, y='pclass', x='survived', hue='sex', estimator='sum', orient='h')
   ```
   ![](/assets/img/python-data-analysis/seaborn-barplot.png)
 - the black line i believe helps with approximation and thus faster plotting and calculations
 - plotting the same thing using matplotlib - 
-  ```py
+  ```txt
   titanic.groupby(['pclass', 'sex'])['survived'].sum().unstack().plot(kind='barh')
   ```
   ![](/assets/img/python-data-analysis/seaborn-barplot-simulation-using-matplotlib.png)
