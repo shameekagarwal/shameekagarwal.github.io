@@ -138,6 +138,71 @@ title: Messaging Systems
 - if we set cleanup policy to be compact - a new segment is created, and only the values for the latest keys for a topic is retained, and others are discarded. so e.g. segment 1 has value a for key x and value b for key y, and segment 2 has value c for key y, the newly created segment would have value a for key x and value c for key y. this behavior also makes sense for the consumer offsets topic if i think about it
 - for very large messages, either tweak configuration parameters to increase maximum limits, or better, use something like sqs extended client of aws is possible
 
+## Quick Kafka Revision, To Delete
+
+- what is kafka - open source, distributed event streaming platform
+- typically, there are three actors - **kafka broker**, **producer** and **consumer**
+- **data collection** / **data ingestion** - kafka can sit at the edge of the data engineering platform -
+  - producers can somehow get data to kafka. this way, a data engineering team will have to maintain, scale, and connect to only one platform i.e. kafka
+  - we can perform stream or batch processing, generate the gold layer tables, and finally put the data into kafka for downstream systems to read from
+- **stream processing** - we can build microservices that consume data from kafka, perform some processing using the **kafka streams** library and then produce data back to kafka / some other platform
+- **confluent** - commercial, cloud kafka
+- **topic details** - invoices, partitions - 4, replication - 2
+- additionally, we can also configure **infinite retention** for the topic. for our use case, we would generate the bronze layer and then there is no need of preserving the data. data would be purged automatically after 7 days, which works great for our use case
+- parts of a **message** - key, value and timestamp
+- **topic** - one topic for per kind of message (think of it like a table)
+- so, a kafka cluster can have multiple topics
+- **partitioning** of a topic helps scale it
+- kafka will generate a hash of the key and perform a modulo with the number of partitions to decide which partition the message should go to
+- so, all the messages with the same key will go into the same partition
+- if we do not specify a key, partition would be chosen in a round robin fashion
+- **partition offset** - each message when it reaches a partition is given an offset (incremental, 0, 1, 2 and so on)
+- **timestamp** - it can be either the time when the cluster receives the message, or the time when the message is actually produced. the later is what we typically want, and is also called **event time**
+
+### Example
+
+program to read from a json file - each line in the file is a json object representing an invoice
+
+```py
+import json
+
+from kafka import KafkaProducer
+
+
+class InvoicesProducer:
+  def __init__(self):
+    self.producer = None
+    self.topic = 'invoices'
+    self.client_id = 'shameek-laptop'
+
+  def initialize(self):
+    self.producer = KafkaProducer(
+      bootstrap_servers='kafka-383439a7-spark-streaming-56548.f.aivencloud.com:19202',
+      sasl_mechanism='SCRAM-SHA-256',
+      sasl_plain_username='avnadmin',
+      sasl_plain_password='<<plain-password>>',
+      security_protocol='SASL_SSL',
+      ssl_cafile='kafka-ca.pem',
+      api_version=(3, 7, 1)
+    )
+
+  def produce_invoices(self):
+
+    with open('data/invoices/invoices-1.json') as lines:
+      for line in lines:
+        invoice = json.loads(line)
+        store_id = invoice['StoreID']
+        self.producer.send(self.topic, key=store_id.encode('utf-8'), value=line.encode('utf-8'))
+
+    self.producer.flush()
+
+
+if __name__ == '__main__':
+  invoices_producer = InvoicesProducer()
+  invoices_producer.initialize()
+  invoices_producer.produce_invoices()
+```
+
 ## RabbitMQ
 
 - messaging systems -
