@@ -56,7 +56,7 @@ title: Elasticsearch
     - `get _cat/nodes?v` to view all nodes
     - `get _cat/indices?v` to view all indices
   - using curl -
-    ```sh
+    ```txt
     curl --cacert elasticsearch-8.12.0/config/certs/http_ca.crt \
       -u elastic:pU-z6IdUirqzzUsFVlWh \
       https://localhost:9200/
@@ -131,7 +131,7 @@ title: Elasticsearch
 - by default when we call `put index_name`, we get two shards by default - one primary and one replica shard
 - this is why my cluster running locally goes into yellow health after creating an index - since i was running one elasticsearch node and one of the replicas shards are still unassigned
 - specify settings when creating an index - 
-  ```
+  ```txt
   put products
   {
     "settings": {
@@ -141,7 +141,7 @@ title: Elasticsearch
   }
   ```
 - we can index a document like below. it would return us the auto generated id for it
-  ```
+  ```txt
   post products/_doc
   {
     "name": "Coffee Maker",
@@ -150,15 +150,15 @@ title: Elasticsearch
   }
   ```
 - for a custom id, the endpoint above could have been like so - 
-  ```
+  ```txt
   post products/_doc/100
   ```
 - retrieving a product if we have the id - 
-  ```
+  ```txt
   get products/_doc/100
   ```
 - now, if we for e.g. run the below "for the same id" again, the older document is "replaced" with this new document
-  ```
+  ```txt
   post products/_doc/100
   {
     "name": "Red Shoes"
@@ -208,7 +208,7 @@ title: Elasticsearch
 - my understanding - the values of primary term and sequence number are also assigned to the documents to help with optimistic concurrency control
 - **optimistic concurrency control** - what if an older version of document overwrites a newer version i.e. when writes happen concurrently? this situation is common, given the distributed nature of elasticsearch. e.g. two visitors on our e-commerce app try decreasing the in stock attribute by one simultaneously
 - in newer versions, we are supposed to send the primary term and sequence numbers discussed earlier in order to implement optimistic concurrency control -
-  ```
+  ```txt
   post products/_update/100?if_primary_term=1&if_seq_no=9
   // ...
   ```
@@ -222,7 +222,7 @@ title: Elasticsearch
 - we can also use the bulk api to perform multiple kinds of operations on an index all at once
 - this format that we use is also called nd json
 - example of using bulk api inside kibana - 
-  ```
+  ```txt
   post products/_bulk
   { "index": { "_id": 200 } }
   { "name": "Espresso Machine", "price": 150, "in_stock": 4 }
@@ -236,7 +236,7 @@ title: Elasticsearch
 - my understanding - index vs create vs update - index works for both create and update, update fails when no document exists and create fails when document already exists
 - we can also specify the primary term and sequence numbers inside the action line for optimistic concurrency control
 - using curl to upload data using bulk api, where a file has all the data in the form of nd json - 
-  ```
+  ```txt
   curl -H "Content-Type: application/x-ndjson" \
     -XPOST \
     --cacert ~/elasticsearch-8.12.0/config/certs/http_ca.crt \
@@ -282,7 +282,7 @@ title: Elasticsearch
     - output - ["i'm", "really", "liking", "beer"]
 - **standard analyzer** - the default. it uses no character filters, the standard tokenizer and finally the lowercase token filter
 - there is an easy to use api, where we specify the analyzer / its components, and elasticsearch returns us the analyzed result
-  ```
+  ```txt
   post _analyze
   {
     "text": "2 guys walk into   a bar, but the third... DUCKS! :-)"
@@ -303,7 +303,7 @@ title: Elasticsearch
   }
   ```
 - output is as follows - 
-  ```json
+  ```txt
   {
     "tokens": [
       { "token": "2", "start_offset": 0, "end_offset": 1, "type": "<NUM>", "position": 0 },
@@ -335,7 +335,7 @@ title: Elasticsearch
   - **stop words** - common words in a language that are filtered out when a field is analyzed. e.g. articles
 - note - what we search for is analyzed in the same way as the attribute! e.g. if the word drinking in the document is stemmed to drink, the word drinks in the query is also stemmed to drink
 - below is an example of creating a custom analyzer inside an index. notice the four sections inside analysis - character filter, tokenizer, filter (token filter is called filter) and finally analyzer - 
-  ```
+  ```txt
   put analyzer_test
   {
     "settings": {
@@ -374,7 +374,7 @@ title: Elasticsearch
   - **dynamic mapping** - the field mapping is automatically created for us when elasticsearch encounters a new field
 - [data types](https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-types.html) available in elasticsearch
 - creating an explicit mapping - 
-  ```
+  ```txt
   put reviews
   {
     "mappings": {
@@ -398,11 +398,11 @@ title: Elasticsearch
   }
   ```
 - retrieving the mapping for an index - 
-  ```
+  ```txt
   get reviews/_mapping
   ```
 - when relying on dynamic mapping e.g. for strings, first, using [type coercion](#type-coercion), it would try converting it to a number / date. if that fails, the default behavior is to use [multi field mappings](#multi-field-mappings), so that text is used for attribute, and keyword is used for attribute.keyword. e.g. -
-  ```
+  ```txt
   put recipes/_doc/1
   {
     "ingredients": ["potato", "tomato"]
@@ -411,7 +411,7 @@ title: Elasticsearch
   get recipes/_mapping
   ```
 - output - 
-  ```
+  ```txt
   {
     "recipes": {
       "mappings": {
@@ -435,7 +435,7 @@ title: Elasticsearch
   - `"dynamic": "strict"` - would not allow unknown fields when indexing a document
   - `"dynamic": "false"` - would allow additional fields but not analyze them. they would just be stored and be a part of the _source in the response
 
-  ```
+  ```txt
   put people
   {
     "mappings": {
@@ -451,7 +451,7 @@ title: Elasticsearch
 
 - changing the mapping might not be easy. e.g. assume we want to go from numeric to keyword data type. this is not easy for elasticsearch, since it would have to re index all the existing documents, since the underlying structure itself changes from a bkd tree to an inverted index (keyword data type uses keyword analyzer)
 - so, we can use the re index api, which copies over our documents from the source to the destination index. while doing this, we specify the script, which can do some conversions for us. the syntax / working is similar to scripted updates which we mentioned earlier
-  ```
+  ```txt
   post _reindex
   {
     "source": { "index": "reviews" },
@@ -470,7 +470,7 @@ title: Elasticsearch
 
 - when we use **object** data type, internally, elasticsearch flattens it using **dot notation**
 - e.g. assume we had a document like below i.e. we set the field type of reviews to be an object
-  ```json
+  ```txt
   {
     "product": {
       "manufacturer": {
@@ -484,7 +484,7 @@ title: Elasticsearch
   }
   ```
 - how elasticsearch kind of views them internally - 
-  ```json
+  ```txt
   {
     "product.manufacturer.name": "xyz",
     "product.reviews.author": ["abc", "def"],
@@ -495,7 +495,7 @@ title: Elasticsearch
 - therefore, due to the shortcomings above, we can use the **nested** data type. this means that all the fields of that structure would be correlated
 - nested data type works in a fundamentally different way compared to object data type - internally, a new document is created for each of the review - so, if we were to index a document with 10 reviews, internally 11 documents would be indexed by elasticsearch. there is no flattening inside the same document like in object data type
 - assume we had an array of objects. we can create mapping for nested type as follows - 
-  ```
+  ```txt
   // ...
   "reviews": {
     "type": "nested",
@@ -511,7 +511,7 @@ title: Elasticsearch
 ## Arrays in Elasticsearch
 
 - there is no concept of arrays in elasticsearch - any field can contain 0 or more values in elasticsearch by default
-  ```
+  ```txt
   post products/_doc/100
   {
     "tags": ["electronics"]
@@ -525,14 +525,14 @@ title: Elasticsearch
   get products/_doc/100
   ```
 - in case of text fields, values of array type are simply "concatenated" one after another
-  ```
+  ```txt
   post _analyze
   {
     "text": ["hello", "world"]
   }
   ```
 - output - make note of the offset
-  ```json
+  ```txt
   {
     "tokens": [
       { "token": "hello", "start_offset": 0, "end_offset": 5, "type": "<ALPHANUM>", "position": 0 },
@@ -548,7 +548,7 @@ title: Elasticsearch
 - internally, elasticsearch stores dates as milliseconds since epoch, by converting it into the utc timezone
 - if we do not specify the format, we can specify it in iso-8601 format (the one that looks like `2024-01-21T04:25:21.139Z`) or a number, that is the milliseconds since epoch
 - however, when creating the explicit mapping, we can also specify the format using the java date format
-  ```
+  ```txt
   "purchased_at": {
     "type": "date",
     "format": "dd/M/yy"
@@ -562,7 +562,7 @@ title: Elasticsearch
   - we first create a document (the index is created automatically), and ensure that the dynamic mapping has type number for price. if we started with string itself, then of course the dynamic mapping would create it using text + keyword type
   - then, second and third calls go through due to type coercion and how [arrays](#arrays-in-elasticsearch) in elasticsearch work, while the fourth call fails because it cannot be coerced
 
-  ```
+  ```txt
   post coercion_test/_doc/100
   {
     "price": 7.4
@@ -594,7 +594,7 @@ title: Elasticsearch
 - when retrieving the document, we see "7.4" and not 7.4! maybe while elasticsearch does analyze the fields, it will ultimately just return us what we provided it with in the first place
 - notice how this is a recurring theme, we saw it in [mapping](#mapping) when using `"dynamic": false` as well - _source is the exact same as the input by user, but bts, other processes like coercion, analyzing based on data type, etc are carried out
 - to avoid all the hassle with type coercion, we can just disable it as well when creating the index
-  ```
+  ```txt
   put sales
   {
     "settings": {
@@ -613,7 +613,7 @@ title: Elasticsearch
 - e.g. we have a recipes index, and we would like to use ingredients for searching (use case for text data type) and for aggregations like popular ingredients (use case for keyword data type)
 - so, elasticsearch allows us to specify multiple data types for a field
 - e.g. below, text related data structures would be created for ingredients, while keyword related data structures would be created for ingredients.agg. so, when querying elasticsearch, we would use the same convention as well i.e. use ingredients when we want to use the text based queries but use ingredients.agg for keyword based queries
-  ```
+  ```txt
   put recipes
   {
     "mappings": {
@@ -645,7 +645,7 @@ title: Elasticsearch
 - **term level queries** - term level queries are not analyzed, it is not like a part of it should match, the entire thing should match
 - it does not make sense to use term level queries with text data type. it is typically used for all other data types like keyword, numbers, etc. this is because term level queries are not analyzed, while text data type is analyzed. it just does not make sense to do so, even if we get some hits
 - e.g. of term level query. recall how [dynamic mapping](#mapping) created [multi field mapping](#multi-field-mappings) for both text and keyword. so, since we want to use the keyword variant, we use the below (term level queries are not meant for text data types) - 
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -656,7 +656,7 @@ title: Elasticsearch
   }
   ```
 - specifying multiple terms to match based on -
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -667,11 +667,11 @@ title: Elasticsearch
   }
   ```
 - we retrieved document by id using
-  ```
+  ```txt
   get products/_doc/100
   ```
 - retrieve documents by multiple ids
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -682,7 +682,7 @@ title: Elasticsearch
   }
   ```
 - **range searches** - useful for fields of type dates, numbers, etc 
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -701,7 +701,7 @@ title: Elasticsearch
 - while term level queries are not analyzed, they do allow for some flexibility described in this section
 - still, do not forget the rule of thumb - term level queries are not analyzed, and therefore are not meant to be used for text data types
 - **case insensitive** - will match documents having a tag vegetable / Vegetable. notice how the structure changes a little bit, `tags.keyword` is not a string now like earlier, but an object, with the value specified under `value`
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -715,7 +715,7 @@ title: Elasticsearch
   }
   ```
 - **prefix** - begins with. will match documents having name both "Pasta" and "Pastry", but not "Red Pasta"
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -728,7 +728,7 @@ title: Elasticsearch
   }
   ```
 - **wildcard** - can use `?` / `*`. `past?` will match "paste", `past*` will match "pasta" and "pastry"  however, do not do `*past`. while it will work, it might be very slow if index is huge
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -741,7 +741,7 @@ title: Elasticsearch
   }
   ```
 - **regexp** - allows for regular expressions, useful when use case is more complex than what wildcard can do. remember, i get slightly confused in other places as well - `past*` is wildcard, `past.*` is regular expression. just like in wildcards, only try using it for prefix matching
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -758,7 +758,7 @@ title: Elasticsearch
 ### Exists Term Level Query
 
 - search for all documents where a tag exists
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -783,7 +783,7 @@ title: Elasticsearch
 - like term level queries should be used for any data type but text
 - full text queries should be used for only text data types
 - querying all documents -
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -792,7 +792,7 @@ title: Elasticsearch
   }
   ```
 - e.g. search for a particular field - note how `case_insensitive` is not needed like in term level queries, since the standard analyzer already contains the lowercase filter
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -803,7 +803,7 @@ title: Elasticsearch
   }
   ```
 - if we specify multiple words, e.g. below, we get all products having either pasta **or** chicken in their name
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -814,7 +814,7 @@ title: Elasticsearch
   }
   ```
 - this is because the default operator is or. we can however change it to and as below. notice how the structure changes a little bit, `name` is not a string now like earlier, but an object, with the value specified under `query`
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -828,7 +828,7 @@ title: Elasticsearch
   }
   ```
 - **multi match** - match using multiple fields i.e. either name or tags should have vegetable
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -844,7 +844,7 @@ title: Elasticsearch
 
 - **relevance scoring** - typically in term level queries, the score is just 1, so this concept is not present there. this is not true in full text queries though. e.g. in the or variant of pasta chicken example discussed above, the recipes having both pasta and chicken come before recipes having either of them. this is because recipes containing both are deemed more relevant by elasticsearch
 - **relevance boost** - e.g. boost the score of recipes having vegetable in its name. notice how everything is almost the same except the caret symbol
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -856,7 +856,7 @@ title: Elasticsearch
   }
   ```
 - by default, the score and therefore the sorting happens using the "best matching field". e.g. assume a recipe has vegetable both in its name and its tag. if the name above leads to a score of 12.3 and tags lead to a score of 3, "the final score is not 15.3, but 12.3". we can change this behavior by specifying for e.g. **tie breaker**. so, its like the default value of tie breaker is 0. if we specify for e.g. 0.3, the final score = field_with_highest_score + (0.3 * (sum_of_scores_of_other_fields)). so, all other fields will contribute 0.3 of its score, while the field with the highest score will contribute its entire value
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -872,7 +872,7 @@ title: Elasticsearch
 ### Full Text Queries - Match Phrase
 
 - **match phrase** - a phrase is a sequence of one or more words. till now, the examples we saw did not consider the order of the words, e.g. if we search for "chicken pasta", "pasta xyz chicken" and "chicken pasta" should have the same score. using match phrase, words should appear in the "correct order" and "one after another". e.g. if we search for "complete guide", "a complete and useful guide" would not match. this why [offsets](#analysis) was stored as a part of analysis in the first place. again since it is a full text query, the field would be analyzed using the same analyzer used for field, and all recipes having juice and mango in its name one after another would match
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -884,7 +884,7 @@ title: Elasticsearch
   ```
 - but, what if we want to allow for e.g. "spicy tomato sauce" to match "spicy sauce"?
 - so, we can add the **slop** parameter to the query as follows - 
-  ```
+  ```txt
   get proximity/_search
   {
     "query": {
@@ -917,7 +917,7 @@ title: Elasticsearch
 - **must not** - must not be present
 - **should** - their presence is not mandatory, but they help boost the relevance scores
 - e.g. look for alcohol, not wine, and we are particularly interested in beer. note - while we do not provide multiple queries, each of must, must not and should is an array, thus allowing for multiple term level / full text queries
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -961,7 +961,7 @@ title: Elasticsearch
 - the scores of documents that match what we specify inside **negative** is reduced (opposite of should in bool)
 - "the factor" by which we want the score to be reduced can be specified via **negative boost**
 - e.g. "i want" juice, but i "do not like" not apple - 
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -982,7 +982,7 @@ title: Elasticsearch
   }
   ```
 - e.g. i like pasta, but not bacon. so, both are optional, unlike above where juice was mandatory. so, we need to combine both boosting (for its negative) and bool (for its should). additionally, notice how we use match_all inside must of bool (if only should is present, it would become mandatory)
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -1021,7 +1021,7 @@ title: Elasticsearch
 - we can however, use a **tie breaker** for the other matches
 - recall how the working of this is exactly like [multi match](#full-text-queries). there, we specify multiple fields, here we specify multiple queries
 - in fact a multi match query is converted into a dis max query. multi match query - 
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -1034,7 +1034,7 @@ title: Elasticsearch
   }
   ```
 - equivalent dis max query -
-  ```
+  ```txt
   get products/_search
   {
     "query": {
@@ -1054,7 +1054,7 @@ title: Elasticsearch
 - if we have nested objects, dot notation works just fine
 - recall how we should use nested type and not object type if we want correlation between the different fields for an array of objects
 - how to search through an array of nested type - 
-  ```
+  ```txt
   get recipes/_search
   {
     "query": {
@@ -1089,14 +1089,14 @@ title: Elasticsearch
 
 - specify format using ?format. can be for e.g. yaml
 - use ?pretty if using curl so that the json response is properly formatted. response when using kibana is anyways always formatted, this is more when using for e.g. shell
-  ```
+  ```txt
   curl --cacert ~/elasticsearch-8.12.0/config/certs/http_ca.crt \
     -u elastic:7Nb_iz3DKsvOgWirudWq \
     -XGET "https://localhost:9200/_cat/nodes?format=json&pretty"
   ```
 - we can specify `_source` key to decide what attributes the result should return. by default, the entire document is returned. use case - we only need the ids and want to fetch the original data from another source. it is like projection in sql. set it to false for just the ids, or specify the attributes to include / exclude
 - control the number of results returned using the `size` parameter. the default is 10 -  
-  ```
+  ```txt
   get products/_search
   {
     "size": 100,
@@ -1106,7 +1106,7 @@ title: Elasticsearch
   }
   ```
 - to implement pagination, we can implement the offset using `from` - 
-  ```
+  ```txt
   get products/_search
   {
     "size": 1,
@@ -1121,7 +1121,7 @@ title: Elasticsearch
   - `size` is page size
   - `from` is page_size * (current_page - 1)
 - sorting results - default is sorting by score. also note that sorting by name would throw an exception like - `Text fields are not optimized ...`, so use name.keyword. recall that [default dynamic mapping](#mapping) would generate [multi field mapping](#multi-field-mappings) for strings, with both text and keyword variant
-  ```
+  ```txt
   get products/_search
   {
     "size": 10,
@@ -1136,7 +1136,7 @@ title: Elasticsearch
   }
   ```
 - assume field is multi valued (elasticsearch does not care if a field is an [array](#arrays-in-elasticsearch)). we can then inside the sort array, structure the object like so - 
-  ```
+  ```txt
   {
     "price": {
       "order": "desc",
@@ -1148,7 +1148,7 @@ title: Elasticsearch
 ## Metric Aggregations
 
 - **metric aggregations** - calculate metric like sum, average, etc on the field we specify. e.g. - 
-  ```
+  ```txt
   get orders/_search
   {
     "size": 0,
@@ -1177,7 +1177,7 @@ title: Elasticsearch
 ### Term in Bucket Aggregation
 
 - [term](https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-terms-aggregation.html) - based on the field we specify, it will dynamically create the buckets for us. e.g. log level for logs, status for order like below, etc
-  ```
+  ```txt
   get orders/_search
   {
     "size": 0,
@@ -1192,7 +1192,7 @@ title: Elasticsearch
   ```
 - this helps us get different buckets for each order status, where each bucket contains the number of documents present in it
 - additionally, to get the documents which have for e.g. the status field set to null / do not have the status field, we can add the following inside `terms` above - 
-  ```
+  ```txt
   "missing": "N/A", // 
   "min_doc_count": 0 // 
   ```
@@ -1205,7 +1205,7 @@ title: Elasticsearch
 - unlike metric aggregations, bucket aggregations allow for nesting
 - in fact, we can nest a metric aggregation inside a bucket aggregation as well
 - e.g. below, we will have stats like min, max, etc for each bucket. we create bucket using term discussed above
-  ```
+  ```txt
   get orders/_search
   {
     "size": 0,
@@ -1229,7 +1229,7 @@ title: Elasticsearch
 ### Filter in Bucket Aggregations
 
 - [filter](https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-filter-aggregation.html) - e.g. i want the avg price of all sales, and i also the average price for sales of t-shirt
-  ```
+  ```txt
   get /sales/_search?size=0&filter_path=aggregations
   {
     "aggs": {
@@ -1245,7 +1245,7 @@ title: Elasticsearch
   ```
 - response will contain both the average price of t-shirt's sales and average price of all sales
 - remember - if we for e.g. wanted just the average sales of t-shirts, we would run the below i.e. a query will filter the documents then the aggs would only run on the filtered documents
-  ```
+  ```txt
   get /sales/_search?size=0&filter_path=aggregations
   {
     "query": { "term": { "type": "t-shirt" } },
@@ -1259,7 +1259,7 @@ title: Elasticsearch
 
 - [filters](https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-filters-aggregation.html) - helps us perform aggregations on custom buckets
 - e.g. max length of log for errors and warnings
-  ```
+  ```txt
   get logs/_search
   {
     "size": 0,

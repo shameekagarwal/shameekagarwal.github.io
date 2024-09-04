@@ -138,6 +138,50 @@ title: Messaging Systems
 - if we set cleanup policy to be compact - a new segment is created, and only the values for the latest keys for a topic is retained, and others are discarded. so e.g. segment 1 has value a for key x and value b for key y, and segment 2 has value c for key y, the newly created segment would have value a for key x and value c for key y. this behavior also makes sense for the consumer offsets topic if i think about it
 - for very large messages, either tweak configuration parameters to increase maximum limits, or better, use something like sqs extended client of aws is possible
 
+### Example
+
+program to read from a json file - each line in the file is a json object representing an invoice
+
+```txt
+import json
+
+from kafka import KafkaProducer
+
+
+class InvoicesProducer:
+  def __init__(self):
+    self.producer = None
+    self.topic = 'invoices'
+    self.client_id = 'shameek-laptop'
+
+  def initialize(self):
+    self.producer = KafkaProducer(
+      bootstrap_servers='kafka-383439a7-spark-streaming-56548.f.aivencloud.com:19202',
+      sasl_mechanism='SCRAM-SHA-256',
+      sasl_plain_username='avnadmin',
+      sasl_plain_password='<<plain-password>>',
+      security_protocol='SASL_SSL',
+      ssl_cafile='kafka-ca.pem',
+      api_version=(3, 7, 1)
+    )
+
+  def produce_invoices(self):
+
+    with open('data/invoices/invoices-1.json') as lines:
+      for line in lines:
+        invoice = json.loads(line)
+        store_id = invoice['StoreID']
+        self.producer.send(self.topic, key=store_id.encode('utf-8'), value=line.encode('utf-8'))
+
+    self.producer.flush()
+
+
+if __name__ == '__main__':
+  invoices_producer = InvoicesProducer()
+  invoices_producer.initialize()
+  invoices_producer.produce_invoices()
+```
+
 ## RabbitMQ
 
 - messaging systems -
@@ -170,11 +214,11 @@ title: Messaging Systems
   - "quorum" - replicated across different servers. maintains consistency using quorum
 - rabbitmq can store messages either in memory or on disk
 - the "default exchange" is used if we do not specify the exchange and just specify the routing key
-  ```java
+  ```txt
   rabbitTemplate.convertAndSend("example.rabbitmq", "hello world");
   ```
 - some consumers -
-  ```java
+  ```txt
   @Component
   @Slf4j
   public class Consumer {
@@ -186,7 +230,7 @@ title: Messaging Systems
   }
   ```
 - assume our producer is faster than the consumer. using below, 3 threads are created, one for each consumer. this way, our slow consumers can keep up with the fast producer, without us having spun up additional instances of the consumer
-  ```java
+  ```txt
   @RabbitListener(queues = "example.rabbitmq", concurrency = "3")
   ```
 - spring rabbitmq uses jackson for serialization / deserialization of pojos
@@ -198,7 +242,7 @@ title: Messaging Systems
   - similarly, when producing, the routing key can be empty
   - now, any messages put on the exchange x.hr will flow to both the queues
   - in the snippet below, we specify the exchange name. the routing key is ignored, hence it is set to an empty string
-    ```java
+    ```txt
     rabbitTemplate.convertAndSend("x.hr", "", employee);
     ```
 - "direct exchange" - send messages to selective queues instead of broadcasting to all queues
@@ -248,7 +292,7 @@ title: Messaging Systems
   - using spring, we do not need all this logic - spring can automatically handle the retry and backoff for us, and it will move the failed messages to the dead letter exchange
   - we only to ensure our queue has the right dead letter exchange configured on it
   - apart from that, we can configure the retry logic (exponential backoff) like so - 
-    ```
+    ```txt
     spring.rabbitmq.listener.simple.retry.enabled=true
     spring.rabbitmq.listener.simple.retry.initial-interval=3s
     spring.rabbitmq.listener.simple.retry.max-interval=10s
@@ -256,4 +300,213 @@ title: Messaging Systems
     spring.rabbitmq.listener.simple.retry.multiplier=2
     ```
   - retry at 3s, then 6s (refer multiplier), and remaining 2 retries at 10s gaps
-- 
+
+## Kafka Connect
+
+### Introduction
+
+- it helps perform "streaming integration" between numerous sources and targets like relation databases, messaging systems, no sql stores, object stores, cloud warehouses, etc
+- we could have written kafka producer and consumer codes ourselves. issue - handling failures, retries, scaling elastically, data formats, etc all would have to be done by us
+- miscellaneous advantages - 
+  - kafka also acts as a "buffer" for the data, thus applying "back pressure" as needed
+  - once data is in kafka, we can stream it into multiple downstream targets. this is possible because kafka stores this data per entity in a different kafka topic
+- some architectures - 
+  - an application can just put elements into the kafka topic, while kafka connect can transfer this data from kafka to the sink. application -> kafka -> kafka connect -> database
+  - we can have several old applications putting data into their database at rest. kafka can use cdc and put this data into kafka in near realtime. sometimes, kafka can also act as the permanent system of record. so, new applications can directly read from kafka to service requests. applications -> database -> kafka connect -> kafka -> application
+- we can look at the available connectors [here](https://www.confluent.io/hub/)
+
+### Where Kafka Connect Sits
+
+- important - kafka connect sits between the source and broker / broker and target
+- it runs in its own processes separate from the kafka brokers
+- kafka connect only supports smts (discussed later), so optionally, for complex transformations like aggregations or joins to other topics, use ksqldb / kafka streams
+
+![](/assets/img/messaging-systems/kafka-connect-architecture.png)
+
+### Components
+
+- kafka connect components - connector, transformers and converters
+- "connector" - use "connector plugins" - reusable components that define how to capture data from source into kafka / how to move data from kafka to destination. these are the bridge between the external systems and kafka
+- we can create connectors by making rest calls to the kafka connect api, or we can also manage connectors through ksqldb
+- "converters" - also called serdeser - used for serialization when putting into kafka / deserialization when pulling out of kafka
+- it supports "formats" like json, string, protobuf, etc
+- if we use formats like avro, protobuf or json schemas, converters store these schemas in the "schema registries"
+- optionally, after using such a format, we can enforce the schema to maintain data hygiene
+- "transformers" - they are optional
+- they are single message transformers or smts, and are used for things like dropping fields including pii, changing types, etc. we can have multiple such smts
+- for more complex transformations, we should use ksqldb / kafka streams
+- note - "connector" is "connector instance" in the diagram below
+
+![](/assets/img/messaging-systems/kafka-connect-components.png)
+
+### Workers and Tasks
+
+- kafka connect runs as multiple "workers", and each of them is essentially a jvm process
+- this jvm process is where the different "tasks" run
+- a "task" is the component that performs the actual transfer of data to / from kafka
+- so, a worker can run different "tasks" of different "connectors"
+- but a task is scoped to a single "connector"
+- tasks run on a single thread
+- e.g. to support concurrency, e.g. the jdbc connector can create a task per table in the database, when writing to a sink, tasks can read from different partitions of the kafka topic at a time to parallelize the workload, etc
+
+### Deployment Modes
+
+- kafka connect worker can run in "standalone" or "distributed" mode
+- for standalone mode, only a single "worker" is used
+- we use a configuration file, and it is bundled with the worker easily
+- use case - "locality" - we can simply run kafka connect in standalone mode alongside the other main application process on a machine. it can then take care of transferring for e.g. files written by the main application to wherever we need
+- when using distributed mode, we run multiple "workers" "per kafka connect cluster"
+- we interact with the rest api of kafka connect for changing its configuration in distributed mode
+- this config then gets stored inside "compacted" kafka topics
+- this means additional workers that we spin up would simply have to read from these same kafka topics
+  ![](/assets/img/messaging-systems/kafka-connect-topic.png)
+- in case of failures, workers can be easily added / removed, and rebalance i.e. redistribution of tasks happens automatically. e.g. refer the image below about what happens in case of failure of a worker - 
+  ![](/assets/img/messaging-systems/kafka-conect-distributed-mode-rebalance.png)
+- confluent cloud provides "managed connectors" i.e. we just provide the source / sink details, and confluent cloud takes care of the infra for us automatically
+- "self managed kafka connect cluster" - we have to manage the deployment of kafka connect
+
+### Running on Local via Landoop
+
+- for quick prototyping, we can run kafka connect via [landoop / lensesio](https://github.com/lensesio/fast-data-dev). it comes with kafka setup, some preinstalled connectors, etc - 
+  ```txt
+  services:
+    kafka_connect:
+      image: lensesio/fast-data-dev
+      environment:
+        - ADV_HOST=127.0.0.1
+      ports:
+        - 9092:9092
+        - 8081:8081
+        - 8082:8082
+        - 8083:8083
+        - 2181:2181
+        - 3030:3030
+  ```
+- working with the ui - 
+  - access landoop ui at [http://localhost:3030/](http://localhost:3030/)
+  - access kafka topics ui at [http://localhost:3030/kafka-topics-ui/](http://localhost:3030/kafka-topics-ui/)
+  - access kafka connect ui at [http://localhost:3030/kafka-connect-ui/](http://localhost:3030/kafka-connect-ui/)
+  - access logs at [http://localhost:3030/logs/](http://localhost:3030/logs/), e.g. look at connect-distributed.log
+- now, for e.g. i wanted to add the twitter source connector to this which was not available by default
+  - i downloaded the connector from [here](https://www.confluent.io/hub/jcustenborder/kafka-connect-twitter) under self hosted
+  - then, i added the unzipped it and added the a volume section in the compose file like so - 
+
+    ```txt
+    volumes:
+      - ./jcustenborder-kafka-connect-twitter-0.3.34:/connectors/jcustenborder-kafka-connect-twitter-0.3.34
+    ```
+  - now, the landoop kafka connect ui now starts showing this connector as an option as well
+
+### Source Connector Hands On
+
+- create a new container using the image
+  - we use network mode as host, so now it can talk to the exposed ports above easily
+  - we also map the current directory to the host_volume directory on the container, to easily access files
+
+  ```txt
+  docker container run \
+    --rm -it \
+    --net=host \
+    -v "$(pwd)":/host_volume \
+    lensesio/fast-data-dev bash
+  ```
+- create a topic from inside this shell -
+  ```txt
+  kafka-topics --create \
+    --topic file_source_demo \
+    --bootstrap-server localhost:9092 \
+    --partitions 3 \
+    --replication-factor 1
+  ```
+- now, we create a source connector. go to the kafka connect ui, click on new, and then under source, click on file
+- we are asked to enter the properties. enter it like so - 
+  ```txt
+  name=FileStreamSourceConnector
+  connector.class=org.apache.kafka.connect.file.FileStreamSourceConnector
+  file=file_source.txt
+  tasks.max=1
+  topic=file_source_demo
+  key.converter=org.apache.kafka.connect.json.JsonConverter
+  value.converter=org.apache.kafka.connect.json.JsonConverter
+  ```
+- now, we enter the actual landoop container - 
+  ```txt
+  docker container exec -it personal-kafka_connect-1 /bin/bash
+  ```
+- we create the file file_source.txt (`touch file_source.txt`) and enter some lines in it (`cat>>file_source.txt`)
+- open the kafka topic ui in a new tab, and see a new record in the topic for each line in the file
+  ![](/assets/img/messaging-systems/kafka-file-source-connector-topic.png)
+- sink connector would work pretty much the same way with some additional considerations - 
+  - how to add data - whether we should simply insert it or upsert it
+  - the primary key to use if for e.g. upserting records
+  - whether tables in the sink should be automatically created (new table) and evolved (schema changes)
+
+### SMT Hands On
+
+- here, i am using the [datagen source connector](https://www.confluent.io/hub/confluentinc/kafka-connect-datagen), which can easily produce mock data - i am specifying it to produce orders mock data via the quickstart field, into the orders topic
+- i am specifying two smts - to cast values of fields and to format timestamp fields
+
+```txt
+name=DatagenConnector
+connector.class=io.confluent.kafka.connect.datagen.DatagenConnector
+tasks.max=1
+kafka.topic=orders
+quickstart=orders
+
+transforms=castValues,tsConverter
+
+transforms.castValues.type=org.apache.kafka.connect.transforms.Cast$Value
+transforms.castValues.spec=orderid:string,orderunits:int32
+
+transforms.tsConverter.type=org.apache.kafka.connect.transforms.TimestampConverter$Value
+transforms.tsConverter.target.type=string
+transforms.tsConverter.field=ordertime
+transforms.tsConverter.format=yyyy-MM-dd
+```
+
+### Rest API
+
+- refer the documentation [here](https://docs.confluent.io/platform/current/connect/references/restapi.html)
+- view the available connectors - `curl -s localhost:8083/connector-plugins | jq`
+- view the running connector - `curl -s localhost:8083/connectors | jq`
+- get the tasks for a connector - `curl -s localhost:8083/connectors/logs-broker/tasks | jq`
+
+### Running Using Compose
+
+- the base image used by confluent - `confluentinc/cp-kafka-connect`
+- we can add the extra connect plugins / jars on top of this base image, and create a new custom image
+- the format is `owner/component:version`, so for e.g. if i want to add the [snowflake sink connector](https://www.confluent.io/hub/snowflakeinc/snowflake-kafka-connector), i would probably do `snowflakeinc/snowflake-kafka-connector:2.4.1`
+- example dockerfile for a custom kafka connect image
+  ```txt
+  FROM confluentinc/cp-kafka-connect
+
+  RUN confluent-hub install --no-prompt	confluentinc/kafka-connect-datagen:latest
+  RUN confluent-hub install --no-prompt	confluentinc/kafka-connect-elasticsearch:latest
+  
+  CMD [ "/etc/confluent/docker/run" ]
+  ```
+- now, when spinning up "workers" using this image, we need to configure environment variables, e.g. - 
+  - all worker nodes with the same "group id" join the same kafka connect cluster
+  - the kafka topic where all of the configuration gets stored
+  - the kafka broker and schema registry urls
+
+### Resiliency
+
+- monitoring kafka connect instances - two main ways
+  - if we are inside confluent cloud, "confluent metrics api" can be used to export metrics to for e.g. new relic
+  - otherwise, jmx and rest metrics are exposed by kafka connect, which can then be consumed
+- kafka connect supports several error handling patterns like "fail fast", "dead letter queue", "silently ignore", etc
+- e.g. when using a dead letter queue, the failed messages would be routed to a separate kafka topic
+- we can then inspect its headers to inspect the cause for the error etc
+- example scenario - 
+  - assume source kafka connector is changed to serialize using avro instead of json
+  - however, our sink kafka connector is trying to deserialize them using json
+  - the failed messages serialized using avro would be sent to the dead letter queue, since the "converter" cannot deserialize them
+  - now, we can add a separate sink connector configuration to ingest from the dead letter queue using the avro deserializer and write to the sink
+- some tips to debug - 
+  - number of messages in dead letter queue and inspect the headers of these messages
+  - make the connector status rest api call to the kafka connect cluster - it will show the overall status of the connector and its individual tasks
+    ```txt
+    curl -s "http://localhost:8083/connectors/jdbc-sink/status" | jq '.tasks[0].trace' | sed 's/\\n/\n/g; s/\\t/\t/g'
+    ```
+  - we can [change the logging level](https://docs.confluent.io/platform/current/connect/logging.html#change-the-log-level-for-a-specific-logger) of some connectors dynamically i.e. without restarting the workers

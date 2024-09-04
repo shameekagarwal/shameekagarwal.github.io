@@ -206,7 +206,7 @@ this has transitive dependency country &#10132; capital since the capital can be
   - the auto increment column should be indexed
   - the auto increment column cannot have a default value
 - create table example -
-  ```sql
+  ```txt
   create table if not exists actors (
     id int auto_increment,
     first_name varchar(20) not null,
@@ -220,11 +220,11 @@ this has transitive dependency country &#10132; capital since the capital can be
   ```
 - we can use `default` while inserting data to instruct mysql to use the default value. it would work for auto increment id as well. we can also not specify the column name altogether
 - insert into table by not specifying id -
-  ```sql
+  ```txt
   insert into actors (first_name, second_name) values ("jennifer", "aniston");
   ```
 - insert into table by specifying id which is auto increment -
-  ```sql
+  ```txt
   insert into
     actors (first_name, second_name, id)
   values
@@ -232,67 +232,67 @@ this has transitive dependency country &#10132; capital since the capital can be
     ("johnny", "depp", default);
   ```
 - querying in tables by selecting all columns -
-  ```sql
+  ```txt
   select * from actors;
   ```
 - select specific columns and filter results using `where` clause -
-  ```sql
+  ```txt
   select first_name, second_name from actors where first_name = "tom";
   ```
 - we have a lot of operators in mysql, look [here](https://dev.mysql.com/doc/refman/8.0/en/non-typed-operators.html)
 - we can use the `like` operator with where clause for pattern matching. `_` can be used to match exactly one character, `%` can be used to match 0 or more characters -
-  ```sql
+  ```txt
   select * from actors where first_name like '_enn%'; -- matches jennifer
   ```
 - we can use `cast` to change data type
 - e.g. order query results by number, but number would be treated as strings i.e. 2 > 10
-  ```sql
+  ```txt
   select * from actors order by cast(age as char);
   ```
 - we can `limit` the number of results returned, and `offset` it from a certain point. note: sql will automatically handle even if our limit or offset goes beyond the number of rows by giving back sensible results
-  ```sql
+  ```txt
   select first_name from actors order by age desc limit 4 offset 3;
   ```
 - delete selective rows -
-  ```sql
+  ```txt
   delete from actors where gender = "male" order by age desc limit 3;
   ```
 - for deleting all rows, a faster method is `truncate actors`, it would delete the table entirely and recreate it
 - update selective rows -
-  ```sql
+  ```txt
   update actors set age = 25 order by first_name limit 3;
   ```
 - we can alter name and data type of column, provide a default value. note: while altering data type, the new and old data types should be compatible -
-  ```sql
+  ```txt
   alter table actors change first_name firstName varchar(20) default "anonymous";
   ```
 - adding a column -
-  ```sql
+  ```txt
   alter table actors add first_name varchar(20);
   ```
 - deleting a column -
-  ```sql
+  ```txt
   alter table actors drop first_name;
   ```
 - indices help in querying data efficiently, just like we search for words in a dictionary. downside is the overhead of creating, storing and maintaining these indices. internally, mysql uses b / b+ trees with the keys of the nodes as primary indices. this helps in efficient querying of data
 - we can create an index on name to speed up queries -
-  ```sql
+  ```txt
   alter table actors add index index_name (first_name);
   ```
 - we can also drop that created index -
-  ```sql
+  ```txt
   alter table actors drop index index_name;
   ```
 - alter table name -
-  ```sql
+  ```txt
   alter table actors rename Actors;
   ```
 - delete table -
-  ```sql
+  ```txt
   drop table if exists actors;
   ```
 - aliases can be used to give temporary names, as they help us write queries that are more readable
-  ```sql
+  ```txt
   select
     t1.first_name as a, t2.first_name as b
   from
@@ -301,19 +301,19 @@ this has transitive dependency country &#10132; capital since the capital can be
     t1.net_worth_in_millions = t2.net_worth_in_millions and t1.id > t2.id;
   ```
 - distinct is a post-processing filter i.e. works on the resulting rows of a query & can be used on multiple columns
-  ```sql
+  ```txt
   select distinct first_name, last_name from actors;
   ```
 - aggregate methods like `min`, `max`, `sum`, `count` can be used -
-  ```sql
+  ```txt
   select count(*) from actors;
   ```
 - group by - helps group rows based on a particular column. we cannot use columns **not** present in group by for select, having, or order by clauses
-  ```sql
+  ```txt
   select gender, avg(net_worth_in_millions) from actors group by gender;
   ```
 - while the where clause helps us filter rows, the having clause helps us filter groups
-  ```sql
+  ```txt
   select
     marital_status, avg(net_worth_in_millions) as avg_net_worth_in_millions
   from
@@ -322,7 +322,7 @@ this has transitive dependency country &#10132; capital since the capital can be
     marital_status having avg_net_worth_in_millions > 200
   ```
 - adding a foreign key constraint - 
-  ```sql
+  ```txt
   alter table digital_assets
   add constraint digital_assets_actor
   foreign key (actor_id) references actors(id);
@@ -337,7 +337,7 @@ this has transitive dependency country &#10132; capital since the capital can be
 - **full outer join** - result of inner join + all rows of the left table, with null for the columns of the right table + all rows of the right table, with null for the columns of the left table
 - **self join** - using the same table on both sides of the join
 - inner join example - assume digital_assets table contains social media links, where the asset_type is an enum containing twitter etc. and url is the link
-  ```sql
+  ```txt
   select
     actors.first_name, actors.second_name, digital_assets.asset_type, digital_assets.url
   from
@@ -347,7 +347,7 @@ this has transitive dependency country &#10132; capital since the capital can be
   ```
   if the same column name is not there in the two tables, the "table." prefix can be removed e.g. `first_name` in place of `actors.first_name`, though i prefer being explicit
 - the above query can be rewritten as below, with **no** performance impact
-  ```sql
+  ```txt
   select
     actors.first_name, actors.second_name, digital_assets.asset_type, digital_assets.url
   from
@@ -356,14 +356,14 @@ this has transitive dependency country &#10132; capital since the capital can be
     actors.id = digital_assets.actor_id;
   ```
 - union clause - merely clubs results together, doesn't join the tables. e.g. the following query will display a list of all actress names, followed by all male actor names
-  ```sql
+  ```txt
   select concat(first_name, ' ', last_name) from actors where gender = 'female'
   union
   select concat(first_name, ' ', last_name) from actors where gender = 'male'
   ```
   note: duplicates are automatically removed since it is a "union", which can be prevented using `union all`
 - left outer join syntax (right join would have similar syntax, not discussed). e.g. in the below query, actors without social media handles would be displayed too, with the columns for `asset_type` and `url` holding null -
-  ```sql
+  ```txt
   select
     actors.first_name, actors.second_name, digital_assets.asset_type, digital_assets.url
   from
@@ -377,7 +377,7 @@ this has transitive dependency country &#10132; capital since the capital can be
 
 - nested queries are slower but sometimes the only way to write a query
 - the following is an example of **nested scalar query**, since the nested query returns a single value. e.g. find all actors who had updated their digital assets most recently
-  ```sql
+  ```txt
   select
     first_name
   from
@@ -388,13 +388,13 @@ this has transitive dependency country &#10132; capital since the capital can be
     );
   ```
 - e.g. find all actors who are on facebook
-  ```sql
+  ```txt
   select * from actors where id in (
     select actor_id from digital_assets where asset_type = 'facebook'
   )
   ```
 - e.g. find actors who updated their social handles on their birthday
-  ```sql
+  ```txt
   select
     actors.first_name
   from
@@ -404,7 +404,7 @@ this has transitive dependency country &#10132; capital since the capital can be
     actors.dob = digital_assets.last_updated
   ```
 - the following is an example of a nested query where it returns a collection of columns. the query returns the same results as the example as above
-  ```sql
+  ```txt
   select first_name from actors where (id, dob) in
     (select actor_id, last_updated from digital_assets);
   ```
@@ -414,7 +414,7 @@ this has transitive dependency country &#10132; capital since the capital can be
 - the subquery references columns from the main query
 - note: we can use the `exists` operator to check if the subquery returns any rows
 - e.g. find actors with their names in their twitter handles - 
-  ```sql
+  ```txt
   select
     actors.first_name
   from
@@ -426,7 +426,7 @@ this has transitive dependency country &#10132; capital since the capital can be
     digital_assets.asset_type = 'twitter'
   ```
 - the query returns the same results as the example as above
-  ```sql
+  ```txt
   select first_name from actors where exists (
     select
       *
@@ -443,7 +443,7 @@ this has transitive dependency country &#10132; capital since the capital can be
 ## Multi Table Operations
 
 - multi table delete use case - delete related data from multiple tables
-  ```sql
+  ```txt
   delete
     actors, digital_assets -- tables to delete rows from
   from
@@ -454,7 +454,7 @@ this has transitive dependency country &#10132; capital since the capital can be
   ```
   we mention the tables to delete rows from, note how this isn't required when deleting from one table
 - we can similarly have multi table updates -
-  ```sql
+  ```txt
   update
     actors inner join digital_assets
   on
@@ -476,7 +476,7 @@ this has transitive dependency country &#10132; capital since the capital can be
 - we can create views from other views as well, and we can perform the same joins and filtering on views that we would otherwise perform on a table
 - when we do `show tables`, we see the views as well, we can see the type of table i.e. whether it is a normal table (also referred to as base table) or a view by using the command `show full tables`
 - e.g. of creating a view -
-  ```sql
+  ```txt
   create view actors_twitter_accounts as
     select
       first_name, second_name, url
@@ -489,26 +489,26 @@ this has transitive dependency country &#10132; capital since the capital can be
   ```
 - views are basically like stored queries, so they get updated whenever the tables get updated
 - we can use `create or replace` to either create a view or replace it if one already exists. e.g. for single actors
-  ```sql
+  ```txt
   create or replace view single_actors as
     select * from actors where marital_status = 'single';
   ```
 - we can update or delete rows from the underlying base tables using views. however, there are conditions e.g. it shouldn't have specific types of joins, group by statements or aggregation functions, etc.
-  ```sql
+  ```txt
   insert into single_actors
     (first_name, second_name, dob, gender, marital_status, net_worth_in_millions)
   values
     ('charlize', 'theron', '1975-08-07', 'female', 'single', 130);
   ```
 - e.g. i try inserting a row into this view, which fails the filtering clause used to create the view
-  ```sql
+  ```txt
   insert into single_actors
     (first_name, second_name, dob, gender, marital_status, net_worth_in_millions)
   values
     ('tom', 'hanks', '1956-07-09', 'male', 'married', 350);
   ```
 - now, since views can update their base tables, this went through and updated the table. however, since the view's query filters out married actors, we don't see the row in the view. we have essentially updated a row in a table through a view which will not be visible in the view. if this behavior is not desirable, we can use the check option while creating the view
-  ```sql
+  ```txt
   create or replace view single_actors
     as select * from actors where marital_status = 'single'
   with check option;
@@ -525,7 +525,7 @@ this has transitive dependency country &#10132; capital since the capital can be
 - row level triggers are invoked once per row, e.g. if a statement updated 25 rows then it gets invoked 25 times, while statement level triggers are invoked once per statement
 - triggers can be invoked at 6 phases - (before, after) * (insert, update, delete)
 - e.g. of trigger - 
-  ```sql
+  ```txt
   delimiter **
   create trigger net_worth_check
   before insert on actors
@@ -552,13 +552,13 @@ this has transitive dependency country &#10132; capital since the capital can be
 - there can be storage engines which don't support transactions / apply locking using different methods
 - irrespective of whether transactions are supported, databases should have some form of locking to disallow concurrent access from modifying the data. e.g. InnoDB supports row level locking so that multiple users can modify the data in the same table. this also makes it a little slower
 - we can start and commit a transaction using - 
-  ```sql
+  ```txt
   start transaction;
   -- statements
   commit;
   ```
 - we can roll back a transaction using 
-  ```sql
+  ```txt
   start transaction;
   -- statements
   rollback;

@@ -9,13 +9,16 @@ title: High Level Design
   - of the different components
   - and how they interact with each other
   - to fulfil requirements (what it should do) and constraints (what it should not do)
-- software development lifecycle - we can repeat this process again and again
+- "software development lifecycle"
+  - requirements
   - design
   - implementation
   - testing
   - deployment
+  - maintenance
+- difference between "waterfall" and "agile" - in agile, we keep iterating over and over on the above steps, and the method is incremental, unlike in waterfall, where we assume that for e.g. the requirements are final
 - software architecture is the output of the first step / input to the second step
-- decisions at the bigger level cannot be changed easily, cost a lot of wasted effort, etc so we need to make good decisions
+- decisions at the bigger level cannot be changed easily, cost a lot of wasted effort, etc so we need to think first
 
 ## System Requirements
 
@@ -106,24 +109,34 @@ title: High Level Design
 - "team / organization scalability" - as we add more engineers, productivity decreases after a certain point
 - we can split codebase into separate modules or better, architecture into separate services to decrease conflicts
 
-### Availability
+### Availability and Reliability
 
-- "availability" - fraction of time our system is operational
-- so, availability = uptime / (uptime + downtime)
-- mtbf - "mean time between failures" and mttr - "mean time to recovery" (both are self explanatory)
-- so, we can also say availability = mtbf / (mtbf + mttr)
-- so, one way to ensure high availability is to reduce mttr i.e. detect and resolve issues in near 0 time
+- availability = uptime / (uptime + downtime)
 - 99.9% means ~9h of downtime in a year
+- mtbf - "mean time between failures". it is the average time the system is operational
+- mttr - "mean time to recovery". it is the average time the system is non operational i.e. time taken to detect, diagnose, repair and test
+- so, reliability = mtbf / (mtbf + mttr)
+- so, one way to ensure high availability is to reduce mttr i.e. detect and resolve issues in near 0 time
+- note - availability != reliability
+  - "availability" - how often the system is accessible when needed
+  - "reliability" - how consistently a system performs without failure
+- "maintainability" - means mttr
 
 ### Fault Tolerance
 
-- there can be "human errors" (e.g. faulty config), "software errors" (out of memory exceptions) or "hardware failures" (infrastructure issues / outage)
+- there can be "human errors" (e.g. faulty config), "software errors" (out of memory exceptions), "hardware failures" (infrastructure issues / outage), "network failures" (e.g. router / cable failures)
 - failures are inevitable
 - "fault tolerance" - helps keep system operational (i.e. [available](#availability)) despite failure of multiple components
 - fault tolerance tactics - prevention, detection / isolation and recovery
 - "failure prevention" - eliminate single points of failures. use "replication" and "redundancy" for this. two strategies - 
   - "active active architecture" - requests can go to any replica. so, all of them have to be kept in sync. so, if one of them goes down, the remaining one will still continue to operate. advantage - helps balance load, since it is like [horizontal scalability](#scalability). disadvantage - keeping all replicas in sync is non trivial
   - "active passive architecture" - one primary replica takes all the requests, while the passive replicas take periodic snapshots of the active replica. disadvantage - we cannot [scale](#scalability) our system horizontally, since we are still restricted to the one active replica. advantage - this leader follower pattern is much easier to implement
+- other terms to describe these - "redundancy", "failover", "replication"
+- "clustering" - grouping similar, multiple servers together. even if one machine / server in the cluster fails, others in the cluster continue to function, thus providing fault tolerance
+
+![](/assets/img/high-level-design/clustering-fault-tolerance.png)
+
+- "check pointing" - all individual processes in the distributed system save their own checkpoints. this helps them come back up in case of a failure. in case of failures, we restore to the checkpoint, and any in-process operations are rolled back as if they never happened
 - "failure detection / isolation" - if we have a faulty replica, our system should be able to detect it and isolate it
 - this is done by a monitoring service using -
   - health checks - monitor service polling the servers periodically
@@ -136,7 +149,7 @@ title: High Level Design
     - rollback service to a stable version
     - rollback databases when it reaches an inconsistent state to a previous consistent state
 
-### SLA, SLO and SLI
+## SLA, SLO and SLI
 
 - sla - "service level agreement" - agreement between the service provider and client
 - if we fail to deliver these sla, we have to provide refunds, license extensions, etc to clients
@@ -150,6 +163,31 @@ title: High Level Design
 - this is why we said [quality attributes](#quality-attributes) should be measurable and testable - otherwise, we would not have been able to measure our slo using sli
 - general guide - based on what clients ask, we should define slo and then find out matching sli
 - another technique - define loser external slo but stricter internal slo
+
+## Centralized Architecture
+
+- note to self - use same points when asked about client server architecture
+- "centralized architecture" - we have a single "server / controller node", and several "client / worker nodes"
+- server node distribute the tasks, while the client nodes perform the actual task
+- "global clock" - all client nodes sync their clocks with the server's clock
+- advantage - easier to implement, monitor and manage
+- disadvantage - single point of failure
+- e.g. - monolith, layer architecture, etc
+
+![](/assets/img/high-level-design/centralized-arch.png)
+
+## Decentralized Architecture
+
+- note to self - use same points when asked about peer to peer architecture
+- "decentralized architecture" - the system's behavior is not controlled by a single server node, but the decisions made by each node's individual decisions
+- each server node has its own set of client nodes
+- "node failure checks" - we divide the task into two identical parts and execute them in parallel. if the output from both subtasks is same, we can be sure that our system is working. else, there is a potential issue with our node. this allows us to respond to failures automatically
+- there are several architectures - "pure" (all nodes are equal and there is no central server), "hybrid" (some nodes might have special responsibilities, e.g. indexing), "structured" (nodes are organized into a specific structure), etc
+- disadvantage - increased overhead for implementation, monitoring and management
+- advantage - more scalable
+- e.g. - cryptocurrency, blockchain, p2p (peer to peer), publish subscribe
+
+![](/assets/img/high-level-design/decentralized-arch.png)
 
 ## API Design
 
@@ -188,7 +226,8 @@ title: High Level Design
 - idl - "interface description language" - we define the api and data types in this language
 - then, the rpc framework we use generates 2 separate implementations - "server stub" and "client stub"
 - they include the corresponding classes for the api and data types we define in the interface description language
-- rpc will also take care of marshalling / unmarshalling the request / response for us automatically
+- so, the idea is our programs just interact with these server / client stubs, and they take care of everything else
+- rpc will take care of marshalling / unmarshalling the request / response for us automatically
 - it might include propagation of exception etc as well
 - rpc helps the clients focus on performing an action on the server systems, and not worry about the network communication
 - drawbacks - 
@@ -196,7 +235,7 @@ title: High Level Design
   - it is also not useful when we want the features like cookies, headers etc
 - popular frameworks - 
   - grpc by google - high performance rpc. uses "http/2" for transport and "protocol buffers" as the interface description language
-  - apache thrift - by facebook
+  - apache thrift - by facebook. also allows interoperability, e.g. python calling a c++ server
   - java rmi (remote method invocation) - unlike above two, specific to java - helps one jvm invoke a method on another jvm
 
 ### Rest API
@@ -231,6 +270,54 @@ title: High Level Design
   - /actors, /actors/{actor_id}
   - /movies/{movie_id}/reviews, /movies/{movie_id}/reviews/{review_id}
 
+### SOAP
+
+- "simple object access protocol"
+- a messaging protocol for exchanging structured data between applications typically over http
+- a soap message is an xml document. it has the following - 
+  - "envelope" - the root element specifying the start and end of the message
+  - "body" - actual payload, can be request or response
+  - optional "header" and "footer"
+- unlike rest, soap has a single endpoint for all requests
+- it is known to be more resource intensive due to its use of xml
+- its features like caching and security (ssl, oauth, etc) may not be as evolved as rest
+
+## Web Sockets
+
+- used for realtime, bidirectional communication between client and server
+- it uses a single, long lived connection between the client and server
+- use cases - online gaming, chat applications, etc
+- first, the connection is established between the client and server i.e. the "websocket handshake" completes
+- then, the client and server can begin interacting without the need for a new request response cycle
+- uses a "publish subscribe pattern", where the client subscribes to a specific channel, and the publisher pushes to it. this allows for efficient communication as this way, the client only subscribes to / receives messages relevant to them
+- http is half duplex, but websockets are full duplex
+- websockets mean more overhead for the server because it maintains a persistent connection for each client
+- there is another concept called "push" - the usual method is "pull", where the client explicitly requests for the data it wants and the server responds with it. disadvantage - overhead due to frequent connections in case of multiple pulls, so not suited for realtime applications. the push method allows the server to push updates to the client
+
+### Alternatives to Websockets
+
+- these 3 are alternatives to [websockets](#web-sockets)
+- "sse (server sent events)" - the client establishes a long term connection like in [websockets](#web-sockets)
+- however, only the server can send data to the client
+- if the client wants to send data to the server, some other technology is required
+- "ajax polling" - the client repeatedly makes requests to the server for data
+- if there is no data, the server returns an empty response
+- "http long polling" - also called "hanging get"
+- client requests server, but server does not respond immediately
+- it instead holds the request open until there is new data available, instead of sending an empty response
+- once the data is available, it sends the response
+- immediately after this, the client requests for fresh data again
+
+![](/assets/img/high-level-design/alternatives-to-websockets.png)
+
+## Ajax
+
+- "ajax" - "asynchronous javascript and xml"
+- small parts of the webpage is exchanged without reloading the entire page
+- this makes the web application interactive and dynamic
+- "ajax request" - the request made to servers to update the web page
+- "jquery" - simplifies ajax and other javascript techniques
+
 ## Large Scale Systems Building Blocks
 
 ### Load Balancers
@@ -246,12 +333,14 @@ title: High Level Design
 - types of load balancers - dns, hardware, software and global server
 - "dns load balancer" - dns maps human friendly urls to ip addresses
 - "dns record" is the response by "dns servers" when asked for ip addresses for a url
-- can return multiple ip addresses in this record, ordered differently every time (maybe using round robin)
+- can return multiple ip addresses in this record, ordered differently every time using round robin
 - the clients typically pick the first address from this list, and we achieve load balancing this way
-- disadvantages
+- disadvantages -
   - dns servers do not perform health checks, so can return ips of faulty servers
   - the dns record can be cached at client, which means they can call the faulty instance till the ttl - "time to live" expires
   - exposes the ip addresses of our instances directly, thus exposing implementation details
+  - not efficient enough to route to the closer data center
+  - dns packets are small (for efficiency). so, they cannot include all the ip addresses
 - "hardware load balancers" and "software load balancers" address all the above problems with dns load balancers
 - hardware load balancers run on hardware optimized for load balancers
 - software load balancers can run on any general purpose machine
@@ -261,6 +350,8 @@ title: High Level Design
 - disadvantages
   - typically, hardware and software load balancers are located close to the instances. so, if we run our load on multiple geographical locations called data centers, one group of the instances will have the load balancer located far away
   - also, load balancers do not solve the "dns resolution" problem on their own - load balancers are again just an ip address, and we need to map it to a more human friendly url
+- the load balancer is behaving like a "reverse proxy" in this case
+- "vip" or "virtual ip" - basically, the outside world only sees one ip address. however, behind the scenes, it automatically load balances between multiple servers, handles failover, etc
 
 ![hw and sw lb disadvantage](/assets/img/high-level-design/hw-and-sw-lb-disadvantage.svg)
 
@@ -327,227 +418,54 @@ title: High Level Design
 
 ### CDN
 
-- cdn - "content delivery network"
+#### Problems
+
 - even with hosting on multiple data centers, there is significant latency between end user and server location
-- first the 3 way handshake happens, then maybe the html is served and eventually all static assets like images are served
+  - first, the 3 way handshake happens
+  - then maybe the html is served
+  - finally, all static assets like images are served
 - this involves multiple network round trips and hops from the client to the server
 - users do not wait for long for websites to load - they typically abandon it
+- also, different network paths have different kinds of issues - e.g. different "path mtu", different levels and types of network congestion characteristics, etc
+- note - "path mtu" - path message transmission unit i.e. the largest packet that can be transferred without the need for splitting it into smaller parts
+- lot of redundancy when duplicate content needs to be served to multiple users
+- this usual method of servicing traffic from the datacenter does not scale to millions of users
+
+#### Solution
+
+- cdn - "content delivery network"
 - we can get the static content like htm, css, js, images and videos closer to our end users
 - cdn is a "globally distributed network of servers"
-- the servers are called "edge servers"
+- the servers are called "edge servers" because they are placed on the "edge network" i.e the interface between the local network and internet
+- these are also called "proxy servers" as they are a proxy between the server and client
 - the location the cdn servers are present at are called pop - "points of presence"
 - page loads are faster now
-- cdn also protects us against ddos attacks
-- cdn also uses technologies that are more optimized, like using storage optimized for delivering static content, compressing using algorithms like gzip, minification of files, etc
+- additional advantage 1 - cdn also protects us against ddos attacks - cdn network is much larger and distributed than an attacker is capable of, so it can absorb large amounts of traffic easily
+- additional advantage 2 - cdn also uses technologies that are more optimized, like using storage optimized for delivering static content, compressing using algorithms like gzip, minification of files, etc
+- additional advantage 3 - tls termination - cdn can handle the overhead of establishing and maintaining secure connections with clients. tls connections are cpu intensive, and involve multiple trips
 - there are two strategies we can use - pull and push
 - "pull strategy" - we tell cdn which content it should cache, and how often this should be "invalidated", which is configured by using a "ttl" property
 - the first time, the cdn has to make the request to our servers to cache it
 - however, subsequent requests are served by the edge servers of the cdn directly
 - after the expiry, the cdn will send our servers a new request to check if the asset has changed, and accordingly refresh the cached asset
-- disadvantages
+- disadvantages -
   - servers need to be available (first time or when ttl is reached) in order to serve the response
   - first request after ttl is reached is slow
 - "push strategy" - we publish the content to the cdn directly when the new version of the asset is available
 - so, we typically do not set a ttl / set a very long ttl in this
 - advantage - using the push strategy, the dependency on our servers to stay available is removed
-- disadvantage - not desirable for frequently changing content, since it would require frequent invalidations and pushes from our end
+- disadvantages -
+  - not suited for long tail content - infrequently accessed content is pushed as well, thus consuming bandwidth and resources
+  - not desirable for frequently changing content, since it would require frequent invalidations and pushes from our end
+- best approach - use the push model for "static content" and pull model for dynamic content
 - examples - cloudflare, amazon cloudfront
-
-## Data Storage
-
-### Relational Databases
-
-- refer [relational databases](/posts/relational-databases/) - tables, rows, columns, primary and foreign keys, etc
-- advantages - 
-  - perform flexible and complex queries using for e.g. joins
-  - remove data duplication by storing data efficiently
-  - intuitive for humans
-  - provides guarantees around [acid transactions](/posts/spring/#jpa)
-- disadvantages - 
-  - rigid structure enforced by schema, which requires planning ahead of time
-  - hard to maintain and scale due to guarantees around acid transactions - it can only be scaled vertically, not horizontally
-  - slower reads
-
-### Non Relational Databases
-
-- nosql databases - non relational databases
-- solve drawbacks of [relational databases](#relational-databases)
-- advantages - 
-  - remove rigidity around schema - different records can have different sets of attributes
-  - eliminate the need for an orm - store data in a more "programming language friendly" and not "human friendly" way, by supporting structures like lists, maps, etc
-  - support much faster queries
-  - scale much more than relational databases, which is useful for big data like use cases - it can be scaled horizontally as well
-  - it follows base - 
-    - basically available - never rejects the reads or writes
-    - safe state - can change data without user interaction - e.g. when performing reconciliation when there is deviation between replicas
-    - eventually consistent - we might get stale data
-- disadvantages - 
-  - does not support complex querying - operations like joins become hard
-  - acid transactions are not supported
-- several types of non relational databases
-- key value store - the value can be anything and it is opaque to the database - we cannot typically query on the value, only on the key. one use case - counters touched by multiple services. e.g. redis, amazon dynamodb
-- document store - collections of documents, where documents have relatively more structure compared to a key value store - we can query on value. values are like an object. e.g. cassandra, mongodb
-- graph database - an extension of a document store. helps establish relationship between records easily. use case - recommendation engine, social networks, etc. e.g. neo4j, amazon neptune
-- we can also use nosql databases as a layer of cache in front of sql databases
-
-### Choosing the Right Database
-
-- redis - 
-  - use cases - cache database calls, cache external service calls, etc
-  - these are key value stores
-- s3 - 
-  - used for assets like videos, images, etc
-  - typically backed by cdn solutions as well
-- elasticsearch - 
-  - built on top of apache lucene
-  - search using different fields of the entities
-  - supports fuzzy searching to help with typos - we can also configure the edit distance based on use case
-  - they are not meant to serve as primary sources of data - they should only serve searches
-- influxdb - 
-  - it is a time series database
-  - used for tracking application metrics like cpu utilization, throughput, etc
-  - it typically supports / is optimized for append only operations - it should not be used for frequently changing data
-  - read queries are performed in bulk - we query for the last few minutes or hours of data and perform aggregations on them
-- cassandra - 
-  - can handle massive amounts of reads and writes
-  - follows a no master / leaderless strategy
-  - the entire design of key value store comes in here
-  - so, horizontally scaling is as simple as adding more nodes
-  - these key value stores can make queries based on partition key easily - however, they cannot perform any complex searching
-  - this is a columnar db
-  - used for ever increasing data
-  - types of queries supported are mostly partition key based
-- hadoop - 
-  - used for data warehousing to perform analytics
-  - we can dump all of the data in a large database and support querying on this data
-  - used for offline reporting
-- mysql - 
-  - if we have structured information and we need acid transactions
-  - we want strong consistency
-  - use cases - inventory management, payment related, etc
-- mongodb - 
-  - this is a document db
-  - lot of attributes, non rigid schema
-  - variety of queries - optimized for json like structures
-
-### Improve Quality Attributes of Databases
-
-- three techniques - indexing, replication, partitioning
-- "indexing" - speed up retrievals by locating them in sub linear time
-- without indexing, retrievals would require a full table scan
-- this is a [performance](#performance) bottleneck
-- underneath, it uses data structures like
-  - hash maps - e.g. find all people from a particular city. city can be the key, while the value can be a list of row indices containing that city
-  - balanced b trees - e.g. find all people in a particular age range
-- composite indexes - formed using a set of columns
-- while the advantage is that reads speed up, disadvantages are
-  - more storage space is required
-  - writes become slower
-- "replication" - already discussed in [fault tolerance](#fault-tolerance) for compute, same logic
-- disadvantage - not trivial to maintain, more common in non relational databases than in relational databases
-- "partitioning / sharding" - in replication, we copy the same data in all replicas. in partitioning / sharding, we split the data in different replicas
-- now, we are not limited by the storage capability of one machine
-- additionally with more storage, queries can now be performed in parallel on the different partitions, thus increasing the speed
-- disadvantage
-  - route the query to the right partition
-  - avoid hot partitions, etc
-  - more common in non relational databases than in relational databases
-- partitioning can be done for compute as well - e.g. traffic from paid customers go to more powerful machines unlike traffic from free customers
-
-### Brewer's CAP Theorem
-
-- in case of a network partition, a distributed database has to chose one of consistency and availability
-- e.g. below, a user updates the value to 6 in a replica
-- another user queries another replica. the replica then via intercommunication realized that the value has changed, and sends the updated 6 value to the user
-
-![cap theorem introduction](/assets/img/high-level-design/cap-theorem-introduction.svg)
-
-- "network partition" - e.g. due to some network issues, one replica is isolated from others
-- now, the replica that is isolated has two options - 
-  - favoring availability - return its local value, which may be outdated
-  - favoring consistency - return an error, asking to try again later
-- note - this only happened when there is a network partition, otherwise, all three were guaranteed
-- definitions below in cap theorem are a little bit different then what we saw for e.g. [here](#important-quality-attributes)
-- "consistency" - read request receives either the most recent write or an error. this helps guarantee all the clients see the same value at the same time, regardless of the database instance they communicate with
-- "availability" - every request receives a non error response, which can be outdated
-- "partition tolerance" - system continues to operate despite an arbitrary amount of messages being lost over the network
-- so, cap theorem states that we can only have two of the three things
-- so, we already saw cp and ap, what about ca?
-- we can have ca if we have no replicas - only a centralized database
-
-### Unstructured Data
-
-- unstructured data - does not follow any "structure"
-- e.g. audio / video files etc - they are just a blob "binary large object"
-- while both [relational](#relational-databases) and [non relational](#non-relational-databases) databases allow for storing of blobs, they are meant for structured, and not unstructured data. e.g. they impose size limits etc
-- some use cases of unstructured data - 
-  - users upload files like videos and images, which we need to process (e.g. transcode, compress, etc)
-  - relational / non relational database snapshots - these snapshots are unstructured data
-  - web hosting - static content
-  - huge datasets used for machine learning, e.g. readings from sensors
-- two solutions for unstructured data - dfs and object storage
-- dfs - "distributed file system" 
-- features / advantages - 
-  - internally, can have features like replication, auto healing, etc
-  - looks like a familiar tree like structure (files within folders) to us
-  - works like file system - mounting on hosts etc
-  - we can modify files like we typically do when working locally, e.g. append logs to log files
-- disadvantage
-  - cannot work with web for static content directly - will require a wrapper on top
-  - has limits on the number of files we can store i.e. the storage space has limits
-- "object / blob storage" - scalable storage, but unlike dfs has no limits on how many objects can be stored
-- stored in containers called buckets
-- also, object storage allows "bigger" files compared to dfs - which makes them ideal for storing database snapshots
-- they expose a rest / http api unlike dfs, which can be easily referenced by our static html pages
-- they support "object versioning" - for a file system, another wrapper would be needed
-- files are stored in a "flat structure" - not a tree like structure like in file systems
-- the object has a name and a value associated with it, which is the actual content
-- typically, object storage is broken into several classes, which offer different throughput and latency
-- object storage uses replication too
-- disadvantage - 
-  - files cannot be opened and modified like we can when using dfs - we need to for e.g. create and upload an entirely new version
-  - cannot be mounted like file systems
-- we can also run object storage services on our own storage, if cloud is not an option
-- e.g. openio is such a solution
-- s3 (simple storage service) is aws's object storage
-
-## Big Data
-
-- datasets are either very large in size or come at a very high rate for our system to be able to process
-- the output of big data processing can be visualizations, data that can be queried, predictive analysis, etc
-- "batch processing" - 
-  - we store the data on distributed file system
-  - we then run jobs on it based on a schedule
-  - every time the job runs, it can either pick up the new data that was added to the system since the last time it ran, or it can process the entire dataset from scratch
-  - after processing, it can write the computed view to a database
-- advantages of batch processing
-  - easy to implement
-  - more efficient than processing each event individually
-  - e.g. we push some faulty code. if our dfs still has all the original data, we can push the fixed code and run the job on the entire dataset again
-  - finally, we have visibility into historic data as well
-- drawbacks - not realtime
-- e.g. we would like logs and metrics to be analyzed realtime so that we can identify and debug production issues quicker
-- so, we use "stream processing"
-  - the events come on a [message broker](#message-brokers)
-  - so it reacts realtime, not based on a schedule
-  - after processing, it can write the computed view to a database
-- advantage - react immediately
-- disadvantage - complex analysis cannot be done - fusing data from different times is very difficult / not possible - our computations can only use recent data
-- going back to the same e.g. of observability systems, we would need historic data as well in anomaly detection
-- so, we can use the "lambda architecture" - balance between batch processing, and stream processing
-- it has three layers
-- "batch layer" - follows the batch processing architecture. it takes all the data into account and typically overwrites its old output
-- "speed layer" - follows the stream processing architecture. it helps fill the gap caused by events which came in since the last event that was operated on by the batch job
-- "serving layer" - joins the outputs of the batch layer and speed layer and combines them into one
-
-![lambda architecture](/assets/img/high-level-design/lambda-architecture.svg)
 
 ## Cloud Computing
 
 - cloud is mostly based on iaas - "infrastructure as a service"
 - gives us access to virtually infinite compute, storage and networking
 - we only pay for what we use / what we reserve, thus saving costs
-- we can improve our scalability and reliability by deploying our software to "multiple regions" and "multiple zones"
+- we can improve our scalability and reliability by deploying our software to multiple "regions" and "zones"
 - disadvantage of cloud computing - we do not have access to the infrastructure
 
 ## Scalability Patterns
@@ -559,22 +477,25 @@ title: High Level Design
 - note - load balancing != load balancer, so do not get confused
 - note - message brokers are not exposed outside, so they cannot be used via client directly unlike [load balancers](#load-balancers)
 - when using cloud, both load balancers and message brokers are built with redundancy and replication in mind to increase [fault tolerance](#fault-tolerance)
-- there are various "routing algorithms" used for load balancing. we discuss three of them below - round robbin, sticky session and least connections
-- "round robbin"
+- there are various "routing algorithms" used for load balancing. we discuss three of them below - round robin, sticky session and least connections
+- "round robin"
   - the simplest / most common / default algorithm
   - routes each request sequentially to the "next" worker instance
   - disadvantage - only works when application is stateless - each request by a client can be handled in isolation by any one of the target servers. it will not work when an "active session" is maintained between a client and a server
+- a variation can be "weighted round robin". useful to direct for e.g. more traffic to more powerful servers
 - "sticky session / session affinity" - 
   - use cases - 
-    - auth information of a client is stored in the session so that the client does not have to reauthenticate repeatedly
-    - client is uploading a very large file in parts. the different parts need to go to the same server for this to work
+    - auth information of a client is stored in session, so that it does not have to reauthenticate repeatedly
+    - a client uploads a very large file in parts. the different parts need to go to the same server for reconciling
   - requests from the same client are always sent to the same server
   - this can be achieved using a cookie / by inspecting client's ip address
+  - "ip hash" - when the client ip address hash is used to determine the server to direct traffic to
   - disadvantage - this only works for smaller sessions - otherwise, the same server might end up with too many longstanding connections
 - "least connections" - 
   - route the request to the server with least number of open connections
   - so, it solves the problem we saw with sticky sessions
   - use case - like sql, ldap, etc
+- "least response time" - direct to the server with the smallest response time
 - "auto scaling + load balancing" - most instances run a background process called "agent". it collects metrics around cpu consumption, network traffic, memory consumption, etc. based on these metrics, we can automatically "scale in" (decrease) / "scale out" (increase) the number of our instances. we can tie this to [load balancer](#load-balancers) as well, thus the load balancer would always be aware of the available ip addresses
 
 ### Pipes and Filters Pattern
@@ -599,15 +520,16 @@ title: High Level Design
   - split into chunks, so that the video can be downloaded in chunks instead of downloading it all at once
   - select a frame from each chunk to act as thumbnails, which helps when we try to seek
   - resize each chunk to different resolutions, which helps with "adaptive streaming" i.e. decide the quality of the video based on the client's bandwidth
-  - in parallel to all the filters above, another sequence of filters can convert audio into captions based on nlp etc
+  - in parallel to the filters above, another sequence of filters can convert audio into captions using nlp
 - filters should be "stateless"
 - this pattern is not ideal if we want to run all the filters as a part of a transaction - performing a distributed transaction is very difficult
+- "shared data pattern" - when the different filters use the same shared data source. useful when the volume of data is huge, and multiple filters operate on it
 
 ### Scatter and Gather Pattern
 
 - the client sends a request to the "dispatcher"
 - the dispatcher sends the request to the "workers" and gathers the result
-- unlike [load balancing](#load-balancing-pattern) where the request is only forwarded to one instance, the request in this case is send to all workers
+- unlike [load balancing](#load-balancing-pattern) where the request is only forwarded to one instance, it is sent to all workers here
 - each worker is independent of the other, and thus they can all operate in parallel
 - throughout this pattern, the client is unaware of all this 
 
@@ -641,7 +563,7 @@ title: High Level Design
 - this is called a "distributed monolith" - the orchestration service in the above example has become a distributed monolith because for e.g. multiple teams working on their own services might have to now change the orchestration service code together, again impacting [organization scalability](#scalability)
 - instead, the orchestration service is replaced by a message broker
 - a message is put onto the message broker, and the services can subscribe to this message as needed
-- they can then also put more messages into the queue as a result of which other services can subscribe to them again
+- they can then also put more messages into the queue as a result of which other services can subscribe to them
 - this continues till the flow is complete
 - since all this communication is asynchronous, all services are decoupled from each other
 - even if one of the services is down, the flow can still continue and the relevant parts will still complete
@@ -711,7 +633,7 @@ title: High Level Design
   - assume that the outbox table adds a unique id for every event, which the message relay service adds to the event it puts on the message broker as well. the consumer keeps track of the ids it has already consumed, and this way, it knows that when there is a duplicate event, it needs to discard it
 - issue 2 - the database does not support transactions, e.g. non relational databases. step 1 of our solution relied on the fact that insertion into the outbox table and update to the regular tables can all be done under one transaction
 - solution - instead add an outbox parameter to the object, which contains the list of events to be sent
-  ```
+  ```txt
   {
     "name: "...",
     "outbox": [
@@ -763,21 +685,21 @@ title: High Level Design
   - we have additional complexity for two different services and for the logic for synchronization between them
 - cqrs + materialized view -
   - e.g. when we split our stack into microservices, the data is stored in different databases
-  - this means complex services will have to hit different databases (via api calls to their services), which can be slow
+  - this means complex services will have to hit different databases (via api calls to their services), which is slow
   - so, we use one query service which receives events from "multiple command services" (multiple command services is the key here), and it stores the combined materialized view for all these services at one place
   - e.g. one command service for courses, one command service for reviews
-  - and one query service for the [materialized view](#materialized-view-pattern) that joins the data from both services for an enriched course view
+  - and one query service for the [materialized view](#materialized-view-pattern), say an "enriched course"
 
 ### Event Sourcing Pattern
 
 - typically, data in databases is the current state - modifications override the previous state with new state
-- sometimes, we need all the events that led to a state - e.g. we need to show all the transactions for a user's bank account
+- sometimes, we need all the events that led to a state - e.g. show all the transactions for a user's bank account
 - so, we only store events instead of the current state
 - events are "immutable" - we can only "append" events, not change existing ones
 - event sourcing has high performance for write intensive workload - in normal databases in case of write heavy workloads, there is a high contention due to concurrent updates for the same tables and rows. with event sourcing, each write is "append-only", which involves lesser locks
 - to find the current state, we only have to apply or replay all the events
 - we can also store the events in message brokers instead of storing them in databases, but querying message brokers is more difficult than querying databases
-- now, replaying all events for all queries every time might not be efficient. so, we can take "snapshots" at certain periods. we still have all the history, but for deriving the current state, we only need the records since the last snapshot
+- now, replaying all events for all queries every time might not be efficient. so, we can take "snapshots" at certain periods. we still have all the history, but for deriving the current state, we only need records since last snapshot
 - another popular pattern - cqrs + event sourcing
   - the command service just puts the writes to the write events on to the message broker. it can even get rid of its own database
   - the query service listens to these events and accordingly populates its e.g. in memory database with the snapshot we discussed about for faster reads
@@ -813,7 +735,7 @@ title: High Level Design
 - when we migrate from an old monolith to a new set of microservices
 - the new set of microservices need to temporarily interact with the old monolith till the migration is complete
 - this means that code for old apis and protocols is scattered in the new microservices
-- so, we deploy an "anti corruption service" in between, which performs the translation between the new microservices to the old monolith (both request and response, as needed, to and from both microservices and monolith)
+- so, we deploy an "anti corruption service" in between, which performs the translation between the new microservices to the old monolith (both request and response, to and from both microservices and monolith)
 - sometimes, the anti corruption layer can be "temporary" or sometimes "permanent" when we cannot get rid of some parts of the legacy system - e.g. downstream services use the legacy application for reporting and are not ready for a migration yet
 
 ![anti corruption adapter layer pattern](/assets/img/high-level-design/anti-corruption-adapter-layer-pattern.png)
@@ -822,7 +744,7 @@ title: High Level Design
 
 - usually, we have a separate backend in front of our microservices, to serve the frontend
 - now, the frontend just has to interact with this one backend, which performs the logic of relaying the request to the right microservice
-- now, assume we have to support multiple frontends like desktops vs mobiles. they tend to interact with the api differently - 
+- assume we have to support multiple frontends like desktops vs mobiles. they interact with the api differently - 
   - e.g. mobile screens have lesser real estate so display lesser data than desktops
   - mobile devices have lesser resources (ram etc) compared to desktop
   - mobile app owners might want additional features like scanning barcode, only want products available in a particular location, etc
@@ -836,7 +758,7 @@ title: High Level Design
     - any change in this shared library affect all the backends that use it
     - there is also often a "lack of ownership" with such shared libraries
   - spin up another common service called a "shared backend service"
-- the "user agent" header in requests helps us tell the device a request is coming from, and by placing an api gateway in front of these backends, we can decide which backend to route the request to based on the device type
+- the "user agent" header in requests helps us tell the device a request is coming from, and by placing an api gateway in front of these backends, we can decide which backend to route the request to based on the device
 
 ![backends for frontends pattern](/assets/img/high-level-design/backends-for-frontends-pattern.png)
 
@@ -846,14 +768,19 @@ title: High Level Design
 
 - e.g. one client bombards our systems with multiple requests. this leads to high cpu and memory utilization of our resources. thus, our response time increases / services become unavailable, and we would be unable to serve other clients, thus violating our sla etc
 - using "throttling and rate limiting", we set a limit on the number of requests in unit time / bandwidth (amount of bytes) in unit time
-- "server side throttling" - we are the service providers and would like to limit our systems from over consumption
+- "server side throttling" - we as the service providers would like to limit our systems from over consumption
 - server side throttling use case - we can have different grades of customer - premium and so on, and we would like different limits for these different customers
+- server side throttling con - the rate limiter can be overwhelmed by so many clients / it needs to be well scaled
 - "client side throttling" - we are calling external services and would like to set limits on the number of calls made to such services
-- client side throttling use case - we can throttle requests for different services at different levels, based on their quotas
-- we can handle this using different strategies - 
+- client side throttling use case - throttle requests for different services at different levels, based on their quotas
+- we can handle this using different strategies -
   - "drop requests" - status code is 429 (too many requests)
   - "slow down the service" - queue the requests in a queue and process them later
   - "degrade the service" - e.g. a video streaming platform can reduce the resolution of the video
+- use cases -
+  - prevent dos attacks, brute force password logins, etc
+  - prevent resource starvation
+  - managing "quotas" when there are multiple users accessing the same resource
 
 ### Retry Pattern
 
@@ -874,6 +801,9 @@ title: High Level Design
 
 ### Circuit Breaker Pattern
 
+- "cascading failures" - e.g. in a microservice architecture, a failure in one microservice, say due to a new bug, causes a failure in the entire chain. service a -> service b -> service c -> service d, and slow responses from service d causes all the other services to slow down
+- "circuit breaker" - we now relay our network calls via this circuit breaker instead. this way, the circuit breaker can monitor the success rate of the calls it is making. if the circuit breaker notices that too many of the calls that it is making are failing, it would stop relaying the request and immediately return a 503
+- assume a service was struggling with too many requests, and now because of slowness, even more requests are queuing up, thus causing all its replicas to go down due to overload. when we use circuit breakers, we do not forward requests to this faulty service, thus giving it a chance to come back up
 - we were able to recover from temporary and recoverable issues using the [retry pattern](#retry-pattern)
 - retry pattern is optimistic, while circuit breaker is pessimistic
 - if the errors go above a certain threshold, the circuit breaker does not even allow the requests to go through
@@ -896,8 +826,8 @@ title: High Level Design
   - consumer error - the consumer cannot process the message due to some data discrepancy
 - so, we introduce another special topic or queue called the "dead letter queue"
 - two strategies - 
-  - so, both the producer and consumer on encountering an error move the message to the dead letter queue themselves
-  - the message broker itself is configured to move messages to the dead letter queue
+  - so, both the producer and consumer on encountering an error move the message to the dlq themselves
+  - the message broker itself is configured to move messages to the dlq
     - producer errors can be identified easily by the message broker - queue is full, message is too big, etc
     - for consumer errors, if the message would not be consumed for a long time, message brokers can conclude that the messages are not getting acknowledged, and it can move these messages to the dlq
 - best practices - 
@@ -955,7 +885,7 @@ title: High Level Design
   - only beta users get the traffic to the new servers - this can be done by the load balancer for e.g. by inspecting the origin header
 - "ab testing / deployment" - ab testing works just like canary release
 - however, in this case, we deploy with the motive of rolling back to the old version
-- use case - we test the new feature and how it performs, but are not fully ready with them yet to go into full scale production
+- use case - we test the new feature, but are not fully ready with it to go into production
 - sometimes, the users who are a part of this ab testing do not even know about it - they might be seeing new features and can be asked for feedback about it. this helps with genuine feedback
 
 ![canary testing](/assets/img/high-level-design/canary-testing.png)
@@ -975,11 +905,6 @@ title: High Level Design
 - organize system into multiple "physical" and "logical" tiers
 - "logical separation" - different tiers handle different concerns
 - "physical separation" - allows each tier to be separately developed, scaled and upgraded
-- multi tier != multi layer architecture
-- multi layer is when the same application is broken into different modules
-- however, it will still run as a single unit during runtime and will be a single tier architecture
-- in a multi tier architecture, the different tiers run on different machines altogether
-- restriction - communication cannot be skipped between tiers. this helps keep the tiers loosely coupled
 
 ![multi tier constraint](/assets/img/high-level-design/multi-tier-constraint.svg)
 
@@ -1007,6 +932,38 @@ title: High Level Design
   - tier 2 - data tier
 - "four tier architecture" - a new tier in the three tier architecture is introduced between tier 1 and tier 2 for [api gateway](#api-gateway), to address caching, security, etc
 
+## Multi Layer Architecture
+
+- "closed layers" - communication cannot be skipped between the layers
+- this helps keep the layers loosely coupled, and is usually preferred
+- "open layers / layer bridging" - when a layer can be bypassed, it is called an open layer. e.g. imagine that layer 1 can directly communicate to layer 3
+- open layers increase the cost of maintenance due to the increase in the number of dependencies
+- multi tier != multi layer architecture
+- multi layer is when the same application is broken into different modules
+- however, it will still run as a single unit during runtime and will be a single tier architecture
+- in a multi tier architecture, the different tiers run on different machines altogether
+
+## MVC Architecture
+
+- mvc - "model view controller"
+- "model" - maintaining the state of application
+- it is implemented as a set of classes that represent the data and the operations we can perform on it
+- "view" - renders the user interface
+- implemented using "templates" / scripts that generate the html, css and js
+- "controller" - receives the request from the view, receives the response from the model and finally, sends it to the view
+- advantages - separation of concern, allowing for easy development and testing
+- disadvantages - abstractions between model and what user sees, making it less intuitive
+
+## MVVM Architecture
+
+- mvvm -  "model view view-model"
+- the controller in [mvc architecture](#mvc-architecture) gets replaced by "view-model" in this case
+- difference - the "view-model" and view communicate using "data binding"
+- "data binding" - a change in view automatically calls the right methods in the model-view etc
+- while view and controller are more tightly coupled, view and view-model are more loosely coupled
+- note - my understanding is mvc is more for traditional web application backends, while mvvm is more for ui applications like angular
+- typically, we do not need to implement dom manipulation, event handling etc manually
+
 ## Microservices Architecture
 
 - recall [monolith drawbacks](#multi-tier-architecture) - high resource consumption, hard maintainability, lack of fault tolerance. microservices removes all these drawbacks - 
@@ -1019,7 +976,7 @@ title: High Level Design
 - disadvantage -
   - overhead increases around testing, debugging issues, etc
   - latency increases - more so if we do not ensure loose coupling when [decomposing the service](#migration-to-microservices)
-  - most important - distributed transaction management is much harder when compared to using a single database
+  - important - distributed transaction management is much harder when compared to using a single database
 
 ## Migration to Microservices
 
@@ -1056,7 +1013,6 @@ title: High Level Design
 
 - if we use the same database across different services, it results in "tight coupling" - recall that one of the principles of microservices was loose coupling
 - e.g. if the schema changes due to one microservice, this change needs to be propagated to other microservices that use the same database as well
-- if we use a database per microservice, each microservice owns its data and does not expose it to any other service
 - the database of another microservice cannot be accessed directly - they have to go through the api of the owning microservice
 - advantage - we can chose the database optimized for the workload of the microservice
 - downsides - 
@@ -1071,12 +1027,12 @@ title: High Level Design
 - this way, we only need to change the logic in one place
 - by this logic, we might want to package the repeated logic of microservices into a shared library
 - but, this is not a good practice - dry does not hold for microservices
-- sharing a library introduces "tight coupling" - recall that one of the principles of microservices was loose coupling
+- it introduces "tight coupling" - recall that one of the principles of microservices was loose coupling
 - because for e.g. if a team makes changes to the shared library's apis, these changes need to be communicated to the other teams as well
 - another drawback - "dependency hell"
   - e.g. a microservice uses v1 of a library directly
   - its shared library uses a different version (v2) of the same library
-  - now, the microservice needs to upgrade the library to v2 because of the shared library, retest the changes, etc
+  - now, the microservice needs to upgrade the library to v2 because of the shared library, retest this, etc
 - solutions -
   - we can increase the boundary of some microservice to include this shared logic, and other microservices call this microservice for the same
   - we can spin up a new microservices containing that shared logic
@@ -1119,6 +1075,7 @@ title: High Level Design
   - optionally, the message broker can remove the events from storage after a period of time
 - "publish / subscribe"
   - the message broker acts like a temporary storage
+  - this means "replayability" is not supported unlike event streaming 
   - only new events from the point the consumer joins are visible
 - allows for implementing patterns like [event sourcing](#event-sourcing-pattern), [cqrs](#cqrs-pattern), [saga](#saga-pattern)
 
@@ -1138,8 +1095,9 @@ title: High Level Design
   - we can extrapolate lost events - e.g. location updates in a ride sharing service
   - advantage - at most once delivery has the least latency and cost
 - "at least once delivery semantics" - 
-  - the producer will resend the event if the acknowledgement is not received - so, it can result in duplicate events if the message is received but the acknowledgement is lost
-  - consumer sends the acknowledgement to the broker only after successfully processing the event - so, if the consumer crashes after processing the event and before the acknowledgement, it can result in duplicate events
+  - the producer will resend the event if the acknowledgement is not received
+  - consumer sends the acknowledgement to the broker only after successfully processing the event
+  - so, it can result in duplicate events if the message is received (and potentially processed) but the acknowledgement is lost
   - use of at least once delivery - data loss is not acceptable
   - e.g. reviews can be overridden if received multiple times
   - disadvantage - more latency, e.g. broker and producer need to wait for acknowledgements etc
@@ -1189,434 +1147,26 @@ title: High Level Design
   - using [blue green deployment](#blue-green-deployment-pattern), we can test in the blue environment before we switch traffic of the load balancer from blue environment to green environment
   - [canary testing](#canary-testing-and-ab-testing-deployment-pattern)
 
-## Network Protocols
+## Hexagonal Architecture
 
-- "application layer protocol" - two methods are there - 
-  - "client server protocol" - e.g. http, ftp, smtp, websockets
-    - everything in client server protocol (including websockets) uses tcp
-    - http - follows a request response model. the client sends a request, while the server returns a response
-    - websockets - 
-      - client and server have a bidirectional full duplex communication
-      - note - websockets are not the same as peer to peer - clients can talk to server, but clients cannot talk with each other
-      - it is an alternative to inefficient continuous polling using the request response model
-  - "peer to peer protocol" - e.g. web rtc (realtime communication)
-    - all can talk with each other - even clients can talk to each other
-    - this makes it fast, since messages need not be "relayed" via the server
-    - web rtc uses udp, which also makes it fast
-- "transport / network layer" - 
-  - tcp - 
-    - transport control protocol
-    - a single (virtual) connection is maintained
-    - on this connection, all packets are sent one by one
-    - maintains an ordering of packets
-    - receiver sends acknowledgements for every packet
-  - udp - 
-    - user datagram protocol
-    - no connection as such is maintained
-    - packets can be sent in parallel
-    - no concept of ordering
-    - this makes it less reliable than tcp
-    - but, this also makes it faster than tcp
-    - use case - live streaming - if we miss some bits of a live video call, we will not rewind back to listen what we missed
+- "hexagonal architecture" is also called "ports and adapter architecture"
+- separates core functionality of system from its external dependencies
+- "core domain" - contains the application logic and entities for the core business
+- "adapters" - components that connect the core domain to the outside world i.e. databases, web services, etc
+- "ports" - interface / contract between the core domain and adapters
+- "drivers" - concrete implementation of the ports
+- advantage - easy replacement of an adapter without changing the core domain
+- also, the modularization helps with effective unit testing etc
 
-## Caching
+## Serverless Architecture
 
-- store frequently accessed data in fast memory rather than accessing it every time from slow memory
-- it helps reduce latency
-- important - it also helps achieve "fault tolerance"
-- there are different places where data can be cached - client side (on browser), cdn, api gateway / load balancer and application caching at server side (the focus of this section)
-- this application cache (e.g. redis) sits between our server and database
-- distributed caching - imagine we had only one cache server - it would become a single point of failure. so, we use consistent hashing technique to help scale the cache server easily - now, based on the key that our application server uses, the request would be directed to the right underlying cache server automatically
-- the 5 strategies have been discussed below
-- vvimp - all strategies below can be explained nicely if using sequence diagrams
-
-### Cache Aside Strategy
-
-- if cache hit, return
-- if cache miss - 
-  - application to cache - miss
-  - application to db to fetch data
-  - application to cache to populate cache
-  - application returns response to client
-- the application continues to work even if the cache goes down - it falls back to database
-- our current strategy does not interact with the cache for db writes, only reads. this results in following problems - 
-  - for new data, there will always be a cache miss first
-  - inconsistency - we do not invalidate cache for updates, so updates to our data will not be reflected in the cache
-- note - here, our application server has the logic for interaction with cache - so, we can also modify the data being stored in cache based on our needs to optimize it
-
-### Read Through Strategy
-
-- same as [cache aside strategy](#cache-aside-strategy)
-- however, now the cache interacts with the database, and we do not get a chance to modify the data being stored in the cache i.e. the data inside cache would be the same as the data inside database
-- how cache miss works - application will never know if it was actually a cache miss or a hit - 
-  - application to cache - miss
-  - cache to db to fetch data
-  - cache populates itself
-  - cache returns response to application
-  - application returns response to client
-
-### Write Around Strategy
-
-- when writing data to the database - invalidate the cache for the key
-- the application removes the key from cache / marks the dirty flag as true for this document
-- it is used alongside [read through strategy](#read-through-strategy) or [cache aside strategy](#cache-aside-strategy)
-- it basically solves the inconsistency problem we had there
-
-### Write Through Strategy
-
-- first write into the cache, and then write the same thing into the database
-- "2 phase commit" - we need to ensure that both the operations are performed inside a single transaction - either both pass or both fail
-- this too is used alongside [read through strategy](#read-through-strategy) or [cache aside strategy](#cache-aside-strategy)
-- advantage over [write around strategy](#write-around-strategy) - fetches for new data would not result in a cache miss - write around only solved the inconsistency problem, not this problem
-- drawback - our system is now less fault tolerant - if either db or cache goes down, our application will go down
-
-### Write Back (or Behind) Strategy
-
-- unlike [write through strategy](#write-through-strategy) where we synchronously write into the database for a successful write, we asynchronously put the write into a queue after updating the cache in this case
-- the data gets written into the database from the queue into the database eventually
-- advantage - if our system is write heavy, it helps buffer writes into the database
-- it also adds a lot of fault tolerance to our system - we no longer depend on the availability of database
-- one failure scenario and its solution - 
-  - a write operation is performed - write is performed on the cache and is put onto the queue
-  - the db is down for 5 hrs / the db is already performing writes which will take another 5 hrs to complete - so the message just sits in the queue
-  - the cache ttl is 3 hrs - so after 3 hrs, it tries to fetch the data from the database again
-  - now, since the write has not been processed by the database yet, it will not return this record to the cache, and our system will think that the data does not exist in the first place
-  - solution - make the ttl of cache higher
-
-## Transaction
-
-- database transactions should be "acid" compliant
-  - "atomicity" - either all operations are completed successfully or they are all rolled back
-  - "consistency" - database should go from one consistent state to another. e.g. - 
-    - some operation should not lead to a state where for e.g. the payer's balance has reduced but receiver's balance has not increased
-    - operations should not violate "integrity constraints". recall - key, domain, entity, referential
-  - "isolated" - concurrent transactions do not interfere with each other - one transaction will not see the "intermediate state" of another transaction
-  - "durable" - results are persisted to disk so that they can withstand system failure
-- "commit" - make operations of the transaction complete
-- "rollback" - revert all changes caused due to a transaction
-- "save point" - allows us to rollback parts of transactions
-- when executing a transaction, "database locks" are used to lock either tables or rows depending on the database implementation
-- so, transactions should be small, since they consume a lot of locks
-- when something is locked, other operations will wait on this lock for it to be released
-- these concepts work when transactions are local to a particular database. for distributed systems, we can use -
-  - [2 phase commit](#2-phase-commit) - popular
-  - [3 phase commit](#3-phase-commit) - not much used due to complexity
-  - [saga pattern](#saga-pattern) - popular
-- both 2 phase and 3 phase commit are said to be "synchronous", while saga pattern is "asynchronous" - because the locks are not held in saga pattern
-- typically, saga pattern is used for long transactions, when it is not feasible to keep the locks for such long periods and block all other operations
-
-## 2 Phase Commit
-
-- there are two phases - 
-  - voting / prepare phase
-  - decision / commit / abort phase
-- we have a "transaction coordinator"
-- all the microservices participating in this flow are called "participants"
-- note - before performing any operation - both actors - transaction coordinator and participants write the operation to their local file - i think this is like "write ahead log". before performing any request / any acknowledgements, this file is updated first
-- this way, if any of them go down, they can read from this file when they come back up
-- voting / prepare phase - all the services are notified about the update to perform. at this point, the services obtain relevant locks for this update and respond with an ok
-- if for any reason this operation cannot be performed - e.g. "order service" is the transaction coordinator, but the participant "inventory service" responds that there is not enough stock - then the service responds with a not ok
-- based on the response from participants from earlier phase, the transaction coordinator asks all participants to commit / abort the transaction
-- disadvantage of 2 phase commit - coordinator service is the single point of failure
-- if for some reason the transaction coordinator goes down after the participants have obtained locks, the other transactions performed on the participants would be stalled because of this lock. the lock would be held till the transaction coordinator comes back up and responds
-
-![two phase commit](/assets/img/high-level-design/two-phase-commit.png)
-
-## 3 Phase Commit
-
-- same as [2 phase commit](#2-phase-commit), except that the commit phase is broken into two parts - 
-  - pre commit phase
-  - commit phase
-- during the pre commit phase - the transaction coordinator only sends the decision of commit or abort - this operation is not performed
-- the actual commit / abort is only performed the next phase - the commit phase
-- now in this pattern, unlike in 2 phase, there is intercommunication between the participants
-- this way, if there is a failure at either the pre commit or the commit phase, the participants can make decisions - e.g. if any of the participants had received the commit message from the coordinator, it means that the rest of the participants can also kick off the commit phase
-
-## Database Indexing
-
-- data pages - 
-  - internally, data is not stored as tables - that is just a representation
-  - it creates data pages - generally 8kb i.e. 8192 bytes in size
-  - it has three parts - 
-    - header - 96 bytes - metadata like page number, free space, checksum, etc
-    - data records - 8192-(96+36) = 8060 bytes - holds the actual data records
-    - offset - 36 bytes - using an array, each index stores a pointer to the corresponding data record in the data records section described above
-  - e.g. if a row is 64 bytes, one data page can store 8060/64 = 125 table rows
-  - so for storing one table, the underlying dbms will manage multiple data pages
-- data blocks - 
-  - data pages ultimately get written to data blocks
-  - a data block is a section in the actual underlying physical memory that can be read from / written to in one i/o operation
-  - the dbms does not have control over the actual data block, only data page
-  - a data block can hold one or more data pages
-  - so, the dbms maintains a mapping of what data page is stored inside what data block
-- indexing - it is used to increase the performance of database queries. without indexing, the database would have to -
-  - load all the data blocks one by one
-  - go through all the data pages in this block one by one
-  - go through all the data records this page one by one
-- b+ trees - 
-  - databases instead use b+ tree to help achieve logN time, instead of the n described above for crud operations
-  - b trees vs b+ trees - in b+ trees, the nodes at the leaf node level also maintain links to each other, unlike in b trees
-  - m order tree or m ary tree means means a node can have m - 1 keys and m pointers
-  - this tree maintains the sorted property
-  - the tree is always height balanced
-  - the actual values are always in leaf nodes
-  - the values in all other intermediary nodes just help with traversing the tree / reaching the leaf nodes quickly
-  - right is greater than or equal to, left is strictly lesser than
-  - notice how the leaf node level is like a sorted array
-  - the key is the value of the node, which helps us with efficient traversal
-  - alongside this, an additional pointer is stored in every (mainly leaf) node as well, which points to the actual data page
-  - now, using the data page to data block mapping, we can fetch the right data block
-
-![b+ tree](/assets/img/high-level-design/b+-tree.png)
-
-- types of indexing present in rdbms - clustered indexing and non clustered indexing
-- clustered indexing -
-  - what order the original b+ tree is constructed in is determined by the column we use for clustered indexing
-  - this is why only one clustered index is allowed - because it affects how the original b+ tree is constructed
-  - the records in the "data records" section of data page may be jumbled - they are ordered according to insertion time
-  - however, we want them to be ordered based on our indexed column
-  - so, we use the offset field - recall that offset is an array
-  - assume our id insertion order is 1 4 5 2
-  - the offset would look like this - (pointer to 1, pointer to 2, pointer to 4, pointer to 5) = (0, 3, 1, 2)
-  - if we do not specify anything - the primary key is used for clustered index
-- non clustered indexing - 
-  - we have many other keys - secondary index, composite index, etc - they all use non clustered indexing under the hood
-  - we can have multiple non clustered indices unlike clustered index
-  - each non clustered index will use a new b+ tree
-  - so, while clustered indexing determines how the original b+ tree is constructed, non clustered indexing determines how this additional b+ tree is constructed
-  - the leaf nodes of this new b+ tree contains pointers to the actual data pages
-
-## Concurrency Control
-
-- "critical section" - accessing a shared resource
-- e.g. multiple users try to book the same seat, which is seen as free by all of them - and they all try to confirm the same seat
-- techniques like using `synchronized` work only for contention among multiple threads of the same process
-- so, we need to use "distributed concurrency control" for different processes on potentially different machines
-- we have two types of distributed concurrency control - "optimistic concurrency control" and "pessimistic concurrency control"
-- "shared locks" - 
-  - shared locks are used for reads
-  - assume one transaction puts a shared lock on some row
-  - another transaction can also come in and put a shared lock on this row
-  - however, another transaction cannot come in and put an exclusive lock on this row - it would have to wait till all the shared locks are removed from this row
-- "exclusive locks" - 
-  - exclusive locks are used for writes
-  - assume one transaction puts a exclusive lock on some row
-  - another transaction cannot come in - neither with shared nor exclusive lock
-- "dirty read problem" - 
-  - both transaction a and transaction b start
-  - transaction a updates the value of a row to 5
-  - transaction b reads this value as 5
-  - however, due to some error, transaction a has to rollback its changes back to original value
-  - so, transaction b reads intermediate, uncommitted data of transaction a
-- "non repeatable read" - 
-  - transaction a reads the value of balance as 100
-  - transaction b comes in, updates the value to 110 and commits
-  - when transaction a tries reading the value of the row again, it reads it as 110
-  - so, transaction a read different values for the same row during different parts of its transaction
-- "phantom read" -
-  - transaction a sees 500 rows in the database
-  - transaction b comes in and commits 5 new rows
-  - transaction a now sees 505 rows in the database
-  - so, transaction a basically saw different number of rows in the database during different points in the transaction
-- isolation level - recall isolation of [acid](#transaction)
-
-| isolation level  | dirty read<br />possible | non repeatable read<br />possible | phantom read<br />possible |
-|------------------|--------------------------|-----------------------------------|----------------------------|
-| read uncommitted | yes                      | yes                               | yes                        |
-| read committed   | no                       | yes                               | yes                        |
-| repeatable read  | no                       | no                                | yes                        |
-| serializable     | no                       | no                                | no                         |
-
-- "read uncommitted" -
-  - no locks are used
-  - only use when system only involves reads
-- "read committed" - 
-  - shared lock is acquired for read but released as soon as read is over
-  - this explains why we can see committed values by other transactions when we try reading twice
-  - exclusive lock is acquired for write and kept till the end of the transaction
-- "repeatable read" - 
-  - shared lock is acquired for read and kept till the end of the transaction
-  - exclusive lock is acquired for write and kept till the end of the transaction
-- "serializable" -
-  - works just like repeatable read
-  - additionally, it puts a "range lock" on the rows that it touches
-- typically, we can set the transaction isolation level like so - 
-  ```sql
-  set transaction isolation level repeatable read;
-  begin_transaction;
-  ...
-  commit transaction;
-  end_transaction;
-  ```
-- "optimistic concurrency control" - 
-  - uses isolation level of read committed
-  - solves concurrency problem using "versions"
-  - in case of the non repeatable read, transaction a would know that the version has changed (refer example of non repeatable read above)
-  - advantage - allows much higher levels of concurrency as compared to pessimistic concurrency control
-  - disadvantage - if we have too many concurrent writes, we would fail at the last step for all of them, thus wasting too many resources
-- "pessimistic concurrency control" -
-  - uses isolation level of repeatable read / serializable
-  - can have much more deadlock scenarios - 
-    - transaction a and transaction b start off in parallel
-    - transaction a acquires shared lock on row a
-    - transaction b acquires shared lock on row b
-    - transaction a tries to acquire exclusive lock on row b - cannot because of transaction b
-    - transaction b tries to acquire exclusive lock on row a - cannot because of transaction a
-  - understand how the exact same scenario discussed above would not have resulted in a deadlock scenario in case of optimistic concurrency control, because it does not hold the shared lock
-  - database systems are able to detect deadlocks like this and then fail the transactions
-
-## 2 Phase Locking
-
-- 2 phase locking is a type of [pessimistic concurrency control](#concurrency-control)
-- there are 3 types of 2 phase locking - "basic", "conservative" and "strict"
-- "basic 2 phase locking" - 
-  - phase 1 - "growing phase" - transaction can only acquire new locks. the lock manager can either grant or reject this request
-  - phase 2 - "shrinking phase" - transaction cannot acquire any new locks, only release locks
-- basic 2 phase locking has two issues - deadlocks and cascading aborts
-- "deadlock" example - the exact one we discussed in [pessimistic concurrency control](#concurrency-control) is a good example
-- "cascading aborts" example - 
-  - recall how releasing of locks is done one by one in the shrinking phase of basic 2 phase locking
-  - so, lets say transaction a releases exclusive lock on a row as part of the shrinking phase
-  - now, lets say transaction b acquires a shared lock on this row as a part of its growing phase
-  - now, what if transaction a had to be aborted suddenly due to some error
-  - now, transaction b has an inconsistent value of the row, and it would have to be aborted as well
-- deadlocks can be solved by conservative 2 phase locking and wait for graph
-- cascading aborts can be solved by strict 2 phase locking
-- cascading aborts are considered very expensive, since they can result in a "chain of cascades"
-- note - we want to maintain some degree of concurrency as well, not just consistency, like discussed during optimistic and pessimistic concurrency control
-- so, we typically use strict 2 phase locking to resolve cascading aborts and wait for graph for resolving deadlocks
-
-![2 phase locking](/assets/img/high-level-design/2-phase-locking.png)
-
-- "wait for graph" - 
-  - the scheduler maintains a graph, where the nodes represent the transactions
-  - e.g. if transaction a is waiting on a lock to be released which has been acquired by transaction b, then there is an edge from transaction a to transaction b
-  - once there is a cycle that is detected by the scheduler in the graph, it looks for the "victim" in this graph, and then aborts that transaction
-  - in choosing the victim, it might make considerations like the amount of effort already put in by this transaction, amount of effort to rollback this transaction, how many cycles would be removed by aborting this transaction, etc
-- "conservative 2 phase locking" - 
-  - requires transactions to acquire all locks at the beginning itself
-  - either the scheduler assigns all the locks to the transaction if possible
-  - or the transaction will have to wait if one or more of the locks are unavailable
-  - disadvantages - allows very less concurrency, does not prevent cascading aborts
-- "strict 2 phase locking" - 
-  - all the locks are released at once when the transaction is aborted / committed
-  - disadvantages - allows very less concurrency, does not prevent deadlocks
-
-## OAuth
-
-- oauth2 - authentication and authorization standard
-- e.g. there is a third party app called tweet analyzer that uses tweet data to show analytics to a front user
-- option 1 - we give tweet analyzer our credentials. this option is insecure, since - we share our credentials with a third party app, thus we compromise our credentials. tweet analyzer can now do everything that we as an account owner can do, e.g. create tweets, i.e. there is no restricted access
-- option 2 - twitter gives temporary access to tweet analyzer app
-- oauth2 is a specification / protocol, which we need to implement
-- it has various "grant types" - "authorization code" and "client credentials" are the two most important grant type flows for now
-- "resource owner" - the end user i.e. us
-- end users own "resources", e.g. *tweets* in our case
-- "client" - *tweet analyzer* in our case. it is the third party application trying to get restricted access to "resource"
-- "authorization server" - "resource owners" should have an account inside this "authorization server"
-- "resource server" - the application which maintains the "resources", e.g. *twitter* in our case
-- sometimes "resource server" and "authorization server" can be clubbed into one
-- "scopes" - the granular permission that the "client" wants, that "authorization server" gives
-- general flow - 
-  - first, the tweet analyzer apps needs to register itself with twitter. this gives them the "client credentials" - the "client id" and the "client secret"
-  - the resource owners then tries logging in with twitter and not our application
-  - the resource owners are prompted to provide consent to the client to perform the actions specified via scopes on the resources
-  - if the resource owners consent to this, the client is provided with an "access token" and a "refresh token" to issue api calls to twitter on behalf of the client
-- "authorization code" grant type flow - 
-  - resource owner goes to client
-  - client redirects to authorization server with -
-    - client id - helps authorization server identify the client
-    - scope
-    - redirect uri - where the authentication server redirects post successful authentication
-    - response type - "code" - tells that we want authorization code
-    - state - helps with csrf like attacks
-  - resource owners enter their credentials here
-  - assume successful authentication here
-  - client receives an authorization code
-  - client goes to authorization server with - 
-    - client id
-    - client secret - to prove itself
-    - redirect uri
-    - grant type - "authorization_code"
-    - the authorization code
-  - client gets an access token for the resource owner from the authorization server
-  - client can then use this access token to make requests to the resource server on behalf of resource owner
-- this architecture of first getting an authorization code and then getting the access token helps with better security. the first step helps with verifying the resource owner and the second step with verifying the client
-- "implicit" grant type flow (deprecated, removed from oauth 2.1) - 
-  - client receives the access token directly i.e. the entire flow authorization code onwards is skipped
-  - so, the obvious drawback - the client itself is not verified. anyone can mimic the url where they redirect to authorization server. remember it does not have the client secret, only the client id. and in exchange, they can directly obtain the correct access code
-- "password" grant type flow (deprecated, removed from oauth 2.1) - 
-  - resource owner "directly gives" the credentials to the client
-  - so, the obvious drawback is compromise of credentials
-- use case of client credentials grant type flow - no resource owner is involved, so useful for service to service communication. organization a (client) interacts with organization b (resource server and authorization server)
-- "client credentials" grant type flow -
-  - client sends request to authorization server with -
-    - client id
-    - client secret
-    - grant type - "client_credentials"
-    - scope
-  - client gets back access token
-  - client uses this access token to request resource server
-- "refresh token" helps avoiding resource owners from initiating entire login flow again after access token expires
-  - client sends request to resource server with expired access token, hence gets a 401
-  - client sends request to authorization server with -
-    - client id
-    - client secret
-    - grant type - "refresh_token"
-    - refresh token
-  - client receives back a fresh access and refresh token
-  - the client can use this new access token now to make requests to the resource server
-- refresh tokens expiry -
-  - refresh tokens do not typically have an expiration, but can have one
-  - also, refresh tokens can be "rolling" i.e. they are single use and should be replaced with the new refresh token received every time a request for a fresh access token is made
-- how can a resource server verify the access token provided by the client? - three options - 
-  - api interaction between authorization server and resource server. drawback - an additional api call from resource server to authorization server every time
-  - both authorization server and resource server can have access to the same shared storage. drawback - shared storage
-  - recommended - when the resource server boots up, it gets a public certificate from the authorization server. this public certificate is used to validate if the access token has been tampered. also called "jwk endpoint"
-- oidc - openid connect - oauth helped with authorization. by adding openid on top of it, we can use it for authentication as well
-- a specific scope called "openid" is added to the list of scopes to get the identity details of the resource owner
-- this way, we additionally get an id token along with access and refresh tokens
-- the id token is in the form of jwt
-- unlike access token, id token contains things like user name, email, etc - this is what helps with authentication
-- so, two things are being done by our resource server - 
-  - it is verifying the access token using the certificate
-  - it is parsing the token to get user roles, and this is possible because the token is in jwt format - recall how payload and header are just base64 encoded
-- we send the token using `Authorization: Bearer <<token>>`
-- authorization code grant type flow by itself would only work when we use jsp, thymeleaf, etc i.e. server side templating languages
-- however, we cannot hide the client secret in spa applications, since the entire source code is accessible from the browser
-- so, we use pkce - proof key for code exchange
-- so, the client generates
-  - "code verifier" - a random cryptic string
-  - "code challenge" - base64(sha256(code verifier))
-- the ui first when asking for the authorization code in the "authorization code" grant type flow sends the code challenge
-- bts, the authorization server stores this code challenge, and returns the authorization code
-- the ui then sends a request for an access token. this request unlike in the regular "authorization code" grant type flow which includes the client secret, includes the code verifier
-- the authorization server then compares this code verifier with the code challenge which it had stored
-- if the values match, the authorization server returns the right tokens
-- so my understanding - "authorization code" grant type flow is almost same as "pkce", except 
-  - the first request from the client includes the code challenge
-  - the second request from the client does not include the client secret, but includes the code verifier
-- so, with a mitm kind of attack - if someone gets access to authorization code, it is not enough, they need the code verifier as well, and they cannot predict code verifier from the code challenge, since it is encrypted using sha256
-- so, in oauth2.1, they have started clubbing authorization code + pkce grant types together
-- my understanding - if someone gains access to our client id, why cant they self generate the code verifier and code challenge and ask for a new access token? they can, but the redirect uri might help us here by redirecting to our own website! (note - there is some component of specifying valid redirect uris when registering clients with the authorization server)
-- now is there not a second issue above - redirecting to a legitimate app from an illegitimate app? - solved by the "state" parameter, which helped us with csrf attacks
-
-## Encryption
-
-- converts our "plain text" data into a "cipher text"
-- "symmetric encryption" - 
-  - same "key" is used for encryption and decryption
-  - two popular algorithms - aes and des (des is no longer recommended, has been cracked)
-  - advantage - symmetric encryption consumes much less resources / is much faster compared to asymmetric encryption
-  - disadvantages - 
-    - secure distribution of key is difficult
-    - managing different keys for every clients - note that we cannot use the same key for different clients, otherwise they can intercept each other's responses
-- "asymmetric decryption" - 
-  - use two keys - public and private
-  - "public key" - used by sender to encrypt
-  - "private key" - used by receiver to decrypt
-  - note - the above is not always true - my understanding of an example - in "digital signatures" in [oauth](#oauth), the resource server downloads public key from authorization server to validate tokens - aka public key is being used to decrypt?
-  - two popular algorithms - rsa, diffie hellman
-  - advantage - public key can be distributed easily to clients, while private keys are retained by servers
-  - disadvantage - very computationally expensive
-- final note - do not bring concepts of sha etc here - they are hashing, not encryption - encoding != hashing != encryption
+- applications are built using cloud services, thus abstracting the underlying infrastructure away
+- this makes it easier and more cost effective to deploy these applications
+- "cloud functions" - small self contained pieces of code
+- cloud functions are typically "stateless" i.e. they do not share state between invocations
+- "event driven triggers" - they respond to specific events, e.g. change in database
+- "autoscaling" and "pay per use pricing"
+- disadvantages - 
+  - "cold starts" - experience a delay when first invoked, which impacts performance
+  - debugging becomes more difficult, since we do not have access to the underlying infrastructure
+  - limited control, dependency on the cloud provider, etc

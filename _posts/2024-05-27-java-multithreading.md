@@ -46,7 +46,7 @@ title: Java Multithreading
 ## Thread Creation
 
 - we create an instance of `Thread` and to it, we pass an object of a class that implements `Runnable`. its `run` method needs to be overridden. all of this can be replaced by a lambda java 8 onwards
-  ```java
+  ```txt
   Thread thread = new Thread(() -> System.out.println("i am inside " + Thread.currentThread().getName()));
   thread.start();
   ```
@@ -62,14 +62,14 @@ title: Java Multithreading
 
 - the application will not terminate until all threads stop
 - but, we might want to interrupt a thread so that the thread can maybe understand that the application wants to terminate, and accordingly handle cleaning up of resources
-  ```java
+  ```txt
   Thread thread = new Thread(new Task());
   thread.start();
   thread.interrupt();
   ```
 - the interruption can be handled gracefully in two ways as described below
   - if our code throws an interrupted exception, calling `interrupt` will trigger it, and then we can handle it. other examples where this exception happens are for calls like `thread.join()` and `object.wait()`
-    ```java
+    ```txt
     public class Task implements Runnable {
 
       @Override
@@ -83,7 +83,7 @@ title: Java Multithreading
     }
     ```
   - else we can check the property `isInterrupted` and handle it accordingly
-    ```java
+    ```txt
     public class Task implements Runnable {
 
       @Override
@@ -99,7 +99,7 @@ title: Java Multithreading
     }
     ```
 - **background / daemon threads** there might be a case when what the thread does need not be handled gracefully, and it is just an overhead for us to check for e.g. the `isInterrupted` continually. so, we can set the daemon property of the thread to true. this way when the thread is interrupted, it will be terminated without us having to handle it
-  ```java
+  ```txt
   Thread thread = new Thread(new Task());
   thread.setDaemon(true);
   thread.start();
@@ -112,7 +112,7 @@ title: Java Multithreading
 - so, we can instead call `threadA.join()` from thread b, thread b goes into waiting state till thread a completes
 - we should also consider calling the join with a timeout, e.g. `threadA.join(t)`
 - my understanding - if for e.g. the main thread runs the below. first, we start threads t1 and t2 in parallel of the main thread. now, we block the main thread by calling `t1.join()`. the main thread will be stopped till t1 completes
-  ```java
+  ```txt
   t1.start(); t2.start();
   t1.join(); t2.join();
   ```
@@ -128,19 +128,19 @@ title: Java Multithreading
   - threads are not trivial to create, they are resource intensive
 - java provides 4 kinds of thread pools - `FixedThreadPool`, `CachedThreadPool`, `ScheduledThreadPool` and `SingleThreadedExecutor`
 - **fixed thread pool executor** - polls for tasks stored in a queue. there can be many tasks, but a set number of threads which get reused. the queue should be thread safe i.e. blocking
-  ```java
+  ```txt
   int numberOfProcessors = Runtime.getRuntime().availableProcessors();
   ExecutorService executorService = Executors.newFixedThreadPool(numberOfProcessors);
 
   executorService.execute(new Runnable() {...});
   ```
 - **cached thread pool executor** - it looks at its threads to see if any of them are free, and if it is able to find one, it will schedule this task on the free thread. else, it will spawn a new thread. too many threads is not too big of a problem, thanks to the keep alive timeout discussed later. however, expect **out of memory exceptions** if too many tasks are added to the executor, because threads are resource intensive
-  ```java
+  ```txt
   ExecutorService executorService = Executors.newCachedThreadPool();
   ```
 - to remember - threads occupy a lot of space in main memory, hence can cause out of memory exceptions if not controlled properly
 - **scheduled thread pool executor** - it used a delay queue, so that the tasks get picked up by the threads after the specified delay or schedule. this means tasks might have to be reordered, which is done by the queue itself. `schedule` can help trigger the task after a certain delay, `scheduleAtFixedRate` can help trigger it like a cron at regular intervals while `scheduleAtFixedDelay` can help schedule the next task a fixed time period after the previous task was completed
-  ```java
+  ```txt
   ScheduledExecutorService executorService = Executors.newScheduledThreadPool(5);
   executorService.schedule(
       () -> System.out.println("hi from " + Thread.currentThread().getName()),
@@ -172,7 +172,7 @@ title: Java Multithreading
 - if a task wants to return a value, we use `Callable` instead of `Runnable`
 - however, the `execute` method on `ExecutorService` only works if we implement `Runnable` interface. if we implement `Callable` interface, we have to use `submit`
 - the return value of `Callable` is wrapped around a `Future`. `future.get()` is a blocking call i.e. the thread calling it will not move ahead until the future resolves. so, we can also use `future.get(timeout)`
-  ```java
+  ```txt
   ExecutorService executorService = Executors.newFixedThreadPool(1);
 
   Future<Integer> result = executorService.submit(() -> {
@@ -189,13 +189,13 @@ title: Java Multithreading
 - we can cancel the task using `future.cancel(false)`. this means that the thread pool will remove the task from the queue. the false means that if a thread is already running the task, it will not do anything. had we passed true, it would have tried to interrupt the task
 - we also have helper methods like `future.isDone()` and `future.isCancelled()`
 - suppose we have a list of items, and for each item, we want to perform a series of processing
-  ```java
+  ```txt
   Future<Package> package$ = executorService.submit(() -> pack(order));
   Future<Delivery> delivery$ = executorService.submit(() -> deliver(package$.get()));
   Future<Email> email$ = executorService.submit(() -> sendEmail(delivery$.get()));
   ```
   notice how the calling thread is blocked by all `get` of future. instead, we could use - 
-  ```java
+  ```txt
   CompletableFuture.supplyAsync(() -> pack(order))
     .thenApply((package) -> deliver(package))
     .thenApply((delivery) -> sendEmail(delivery))
@@ -208,7 +208,7 @@ title: Java Multithreading
 ## Race Condition
 
 - **race condition** - happens where **resource is shared** across multiple threads
-  ```java
+  ```txt
   public class SharedResourceProblem {
 
     public static void main(String[] args) throws Exception {
@@ -266,13 +266,13 @@ title: Java Multithreading
 - once a thread invokes one of the synchronized method of this class, no other thread can invoke any other synchronized method of this class. this is because **using synchronized on a method is applied on the instance (object) of the method**
 - the object referred to above is called a **monitor**. only one thread can acquire a monitor at a time
 - method one - prefix method signature with synchronized (refer the counter example earlier. the shared resource print would now print 0)
-  ```java
+  ```txt
   public synchronized void increment() {
     // ...
   }
   ```
 - another method is to use synchronized blocks
-  ```java
+  ```txt
   synchronized (object) {
     // ...
   }
@@ -280,7 +280,7 @@ title: Java Multithreading
 - using blocks, the code is much more flexible since we can have different critical sections locked on different monitors
 - if using synchronized on methods, two different methods of the same class cannot be executed in parallel - the monitor there is the instance itself
 - however, when using synchronized blocks, we can do as follows inside different methods of the same class - 
-  ```java
+  ```txt
   Object lock1 = new Object();
   Object lock2 = new Object();
   
@@ -307,7 +307,7 @@ title: Java Multithreading
 - also, java has a lot of atomic classes under `java.util.concurrent.atomic` as well
 - remember - when we use volatile, we make assignment atomic, not operations like `a++` atomic
 - my doubt probably cleared - then what is the use for e.g. `AtomicReference`, if assignment to reference is already an atomic operation? we can do as follows (a metric example discussed later)
-  ```java
+  ```txt
   AtomicReference<State> state$ = new AtomicReference<>();
   state$.set(initialValue);
 
@@ -320,7 +320,7 @@ title: Java Multithreading
 
 - remember - race condition and data race are two different problems
 - **data race** - when the order of operations on variables do not match the sequential code we write. this happens mostly because there are optimizations like prefetching, vectorization, rearranging of instructions, etc
-  ```java
+  ```txt
   class Pair {
 
     private int a = 0;
@@ -339,7 +339,7 @@ title: Java Multithreading
   }
   ```
   calling the class - 
-  ```java
+  ```txt
   Pair pair = new Pair();
 
   Thread t1 = new Thread(() -> { while (true) pair.increment(); });
@@ -350,7 +350,7 @@ title: Java Multithreading
   ```
 - our expectation is that since b is read before a and a is incremented before b, there is no way even with a race condition that b can be bigger than a. however, due to data race, we do hit the print statement
 - data race is also where we can use `volatile`. **volatile guarantees the order of instructions being executed**
-  ```java
+  ```txt
   private volatile int a = 0;
   private volatile int b = 0;
   ```
@@ -378,12 +378,12 @@ title: Java Multithreading
 - one way to prevent deadlocks is to acquire locks in our code in the same order. this need not be considered when releasing the locks
 - another way can be to use techniques like `tryLock`, `lockInterruptibly`, etc (discussed later)
 - reentrant lock - instead of having a synchronized block, we use this reentrant lock
-  ```java
+  ```txt
   Lock lock = new ReentrantLock();
   ```
 - unlike synchronized where the block signals the start and end of the critical section, locking and unlocking happens explicitly in case of reentrant locks
 - to avoid deadlocks caused by for e.g. the method throwing exceptions, we should use it in the following way - 
-  ```java
+  ```txt
   lock.lock();
   try {
     // critical section
@@ -399,7 +399,7 @@ title: Java Multithreading
 - so, two problems - "fairness" and "barge in lock" are solved by reentrant lock
 - if the lock is not available, the thread of course goes into the suspended state till it is able to acquire the lock
 - we can use `lockInterruptibly` - this way, another thread can for e.g. call `this_thread.interrupt()`, and an interrupted exception is thrown. this "unblocks" the thread to help it proceed further. had we just used lock, the wait would have been indefinite
-  ```java
+  ```txt
   try {
     lock.lockInterruptibly();
   } catch (InterruptedException e) {
@@ -408,7 +408,7 @@ title: Java Multithreading
   ```
 - similar to above, we also have the `tryLock` method, which returns a boolean that indicates whether a lock was successfully acquired. it also accepts timeout as a parameter, what that does is self-explanatory
 - this can help, for e.g. in realtime applications to provide feedback continuously without pausing the application entirely
-  ```java
+  ```txt
   while (true) {
     if (lock.tryLock()) {
       try {
@@ -426,7 +426,7 @@ title: Java Multithreading
 - when locking till now, we used mutual exclusion to its fullest. but, we can be a bit more flexible when the shared resource is just being read from and not written to
 - multiple readers can access a resource concurrently but multiple writers or one writer with multiple readers cannot
 - this is why we have `ReentrantReadWriteLock`
-  ```java
+  ```txt
   ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
   Lock readLock = lock.readLock();
   Lock writeLock = lock.writeLock();
@@ -439,7 +439,7 @@ title: Java Multithreading
 - **semaphore** - it helps restrict number of users to a resource
 - remember - locks only allow one user per resource, but semaphores allow multiple users to acquire a resource
 - so, we can call a lock a semaphore with one resource
-  ```java
+  ```txt
   Semaphore semaphore = new Semaphore(number_of_permits);
   ```
 - when we call `semaphore.acquire()` to acquire a **permit**, and the number of permits reduces by one. if no permits are available at the moment, the thread is blocked till a resource in the semaphore is released
@@ -451,7 +451,7 @@ title: Java Multithreading
   - we start with the full semaphore being empty and the empty semaphore being full, since there are no items initially
   - look how we use semaphore's philosophy to our advantage - consumer threads acquire full semaphore while producer threads release it
   - my understanding of why we need two semaphores - e.g. if we only had full semaphore - producer releases it and consumer acquires it - how would we have "stopped" the producer from producing when the rate of production > rate of consumption? its almost like that the two semaphores help with **back pressure** as well
-  ```java
+  ```txt
   Integer CAPACITY = 50;
   Semaphore empty = new Semaphore(CAPACITY);
   Semaphore full = new Semaphore(0);
@@ -459,7 +459,7 @@ title: Java Multithreading
   Lock lock = new ReentrantLock();
   ```
 - producer code - 
-  ```java
+  ```txt
   while (true) {
     empty.acquire();
     Item item = produce();
@@ -473,7 +473,7 @@ title: Java Multithreading
   }
   ```
 - consumer code - 
-  ```java
+  ```txt
   while (true) {
     full.acquire();
     Item item;
@@ -499,7 +499,7 @@ title: Java Multithreading
   - note - when we call `await` on the condition, it also releases the lock before going to sleep, so that the second thread described in the flow above can acquire the lock to mutate the state. so, even though the thread which was waiting gets signaled to wake up, it also needs to be able to acquire the lock again, i.e. the other threads modifying state need to release the lock
   - placing the condition inside the while loop helps so that even if signalled, it will again start waiting if the condition is not met yet
   - first thread - 
-    ```java
+    ```txt
     ReentrantLock lock = new ReentrantLock();
     Condition condition = lock.newCondition();
 
@@ -513,7 +513,7 @@ title: Java Multithreading
     }
     ```
   - second thread - 
-    ```java
+    ```txt
     lock.lock();
     try {
       // modify variables used in condition x...
@@ -532,7 +532,7 @@ title: Java Multithreading
   - simulate **locks** using `synchronized`
 - note - recall how when using conditions we were wrapping it via locks. we need to do the same thing here i.e. wrap using synchronized block in order to be able to call notify
   - first thread - 
-    ```java
+    ```txt
     synchronized (this) {
       while (condition x is not met) {
         wait();
@@ -540,7 +540,7 @@ title: Java Multithreading
     }
     ```
   - second thread. my understanding - but needs to happen on same object and inside different method - 
-    ```java
+    ```txt
     synchronized(this) {
       // modify variables used in condition x...
       notify();
@@ -554,25 +554,25 @@ title: Java Multithreading
 - using locks result in issues like deadlocks if coded improperly
 - our main objective is to execute instructions as a single hardware operation
 - we can achieve this by using Atomic classes provided by java
-  ```java
+  ```txt
   AtomicInteger count = new AtomicInteger(initialValue);
   count.incrementAndGet();
   ```
 - recall how we had discussed that `a = a + 1` actually consisted of three atomic operations, which has all been condensed down into one using these java helper classes
 - so, recall the counter example in shared resource earlier, and how we had solved it using synchronized. we can now get rid of the `synchronized` and implement it as follows -
-  ```java
+  ```txt
   public void increment() {
     count.incrementAndGet();
   }
   ```
 - the disadvantage of using these classes is of course that only each operation by itself is atomic, a series of such calls together is not atomic, so it may be good only for simpler use cases
 - a lot of operations use `compareAndSet` underneath, and we have access to it to. it sets the value to the new value if the current value matches the expected value. otherwise, the old value is retained. it also returns a boolean which is true if the current value matches the expected value
-  ```java
+  ```txt
   count.compareAndSet(expectedValue, newValue);
   ```
 - `AtomicReference` can be used for any object type to get and set values in a thread safe i.e. atomic way, and we can use methods like compareAndSet on it
 - e.g. notice how below, the synchronized keyword is not used for addSample, but we still have a thread safe implementation by using `compareAndSet`. note how and why we use a loop - if the old value stays the same before and after calculating the new value, then update using the new value, else recalculate using the new value using the "new old value"
-  ```java
+  ```txt
   class Metric {
 
     int count = 0;
@@ -597,7 +597,7 @@ title: Java Multithreading
   }
   ```
 - we often have a lot of tasks but not so many threads. some objects are not thread safe i.e. cannot be used by multiple threads. however, they can be used by multiple tasks being executed on the same thread. coding this ourselves can be tough, which is why we have `ThreadLocal`, which basically returns a new instance for every thread, and reuses that instance when a thread asks for that instance again
-  ```java
+  ```txt
   public static ThreadLocal<Car> car = ThreadLocal.withInitial(() -> new Car());
   ```
 - spring uses the concept of this via `ContextHolder`s in for instance, `RequestContextHolder`, `TransactionContextHolder`, `SecurityContextHolder`, etc. my understanding - since spring follows one thread per-request model, this way, any of the services, classes, etc. that need access to information can get it easily. it is like setting and sharing state for a request
@@ -637,7 +637,7 @@ title: Java Multithreading
 - this way, the number of platform threads stay small in number and are influenced by the number of cores
 - there is no context switching overhead just like in reactive programming - what we are saving on here - frequent normal (hence platform hence os threads) context switching is replaced by frequent virtual thread context switching
 - creation techniques -
-  ```java
+  ```txt
   Runnable runnable = () -> System.out.println("from thread: " + Thread.currentThread());
 
   new Thread(runnable).start(); // platform thread (implicit)
@@ -670,7 +670,7 @@ title: Java Multithreading
   - can be used by computationally expensive threads to hint the scheduler that they want to give up the processor for another thread
 - the priority we set manually only serves as a hint - the os can choose to accept / ignore it
 - `thread.start()` is not the same as `thread.run()` - `thread.run()` simply runs the runnable we pass to it inside the calling thread
-  ```java
+  ```txt
   public static void main(String [] args) {
 
     Thread thread = new Thread(() -> 
@@ -697,7 +697,7 @@ title: Java Multithreading
 - the bucket has a capacity of n
 - there can be multiple consumers - when they ask for a thread, they should get a token - they will be stalled till a token is available
 - producer code - 
-  ```java
+  ```txt
   @SneakyThrows
   private void produce() {
 
@@ -725,7 +725,7 @@ title: Java Multithreading
   }
   ```
 - consumer code - 
-  ```java
+  ```txt
   @SneakyThrows
   void consume() {
 
@@ -740,7 +740,7 @@ title: Java Multithreading
   }
   ```
 - final total bucket code - 
-  ```java
+  ```txt
   static class Bucket {
 
     int tokens;
@@ -774,7 +774,7 @@ title: Java Multithreading
   1716809834> thread 6 consumed successfully
   ```
 
-```java
+```txt
 Bucket bucket = new Bucket(5);
 bucket.startProducing();
 Thread.sleep(7);
@@ -808,7 +808,7 @@ for (Thread t : threads) {
 - there is no limit as such to the maximum permits in java's semaphore
 - implement a semaphore which is initialized with maximum allowed permits, and is also initialized with the same number of permits
 - acquire - 
-  ```java
+  ```txt
   @SneakyThrows
   synchronized void acquire() {
 
@@ -823,7 +823,7 @@ for (Thread t : threads) {
   }
   ```
 - release - 
-  ```java
+  ```txt
   @SneakyThrows
   synchronized void release() {
 
@@ -838,7 +838,7 @@ for (Thread t : threads) {
   }
   ```
 - actual semaphore - 
-  ```java
+  ```txt
   static class Semaphore {
 
     private final int maxPermits;
@@ -864,7 +864,7 @@ for (Thread t : threads) {
 ## Example - Implementing a Read Write Lock
 
 - acquiring read -
-  ```java
+  ```txt
   @SneakyThrows
   synchronized void acquireRead() {
 
@@ -876,7 +876,7 @@ for (Thread t : threads) {
   }
   ```
 - acquiring write -
-  ```java
+  ```txt
   @SneakyThrows
   synchronized void acquireWrite() {
 
@@ -888,14 +888,14 @@ for (Thread t : threads) {
   }
   ```
 - releasing read - my thought - just call `notify` to wake up just 1 writer
-  ```java
+  ```txt
   synchronized void releaseRead() {
     readers -= 1;
     notify();
   }
   ```
 - releasing write - my thought - call `notifyAll` to wake up all writers
-  ```java
+  ```txt
   synchronized void releaseWrite() {
     isWriteAcquired = false;
     notifyAll();
@@ -913,11 +913,12 @@ for (Thread t : threads) {
 - remember - we can easily end up in a deadlock - assume all philosophers acquire the fork on their left, and now all of them will wait for the fork on their right. two solutions are
   - only four philosophers at a time try acquiring a fork. this way, at least one philosopher will always be able to acquire two forks and it solves the problem
   - all the philosophers but one try acquiring the left fork first, and then the right fork. one of them tries acquiring the right fork first. note that the order in which forks are released does not matter
+  - only allow picking up of the fork if both the forks are available, do not pick and hold one fork
 - tip - do not insert sleeps - we will see a deadlock quickly
 
 ### Table
 
-```java
+```txt
 static class Table {
 
   private final Semaphore[] forks;
@@ -946,7 +947,7 @@ static class Table {
 
 ### Philosopher
 
-```java
+```txt
 static class Philosopher {
 
   private final Table table;
@@ -981,7 +982,7 @@ static class Philosopher {
 
 ### Main Method
 
-```java
+```txt
 int size = 5;
 
 Table table = new Table(size);
@@ -1005,7 +1006,7 @@ for (Thread thread : threads) {
 
 ### Solution 1
 
-```java
+```txt
 // inside constructor
 eatingPhilosophers = new Semaphore(size - 1);
 
@@ -1020,7 +1021,7 @@ private void acquire(int philosopherId) {
 
 ### Solution 2 
 
-```java
+```txt
 @SneakyThrows
 private void acquire(int philosopherId) {
   if (philosopherId == 0) {
