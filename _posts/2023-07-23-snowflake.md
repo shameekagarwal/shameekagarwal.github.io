@@ -607,3 +607,355 @@ title: Snowflake
     - every user is granted this role by default
 
 ![role hierarchy](/assets/img/warehouse-and-snowflake/role-hierarchy.png)
+
+## Snowflake Architecture
+
+- **query processing** - 
+  - uses **virtual warehouses**
+  - _each_ virtual warehouse is a mpp cluster of compute nodes
+  - its **size** (ranging from xs to 6xl) governs the compute, memory, cpu, etc it will have
+  - each increase in size almost _doubles_ the compute power
+  - account for most of the credit consumption
+  - scale statically or dynamically using **multi cluster warehouses**
+- **storage** - 
+  - store in columnar format
+  - use compression when storing to reduce size by 3-5 times
+  - cost of storage is typically negligible
+- **cloud services** - 
+  - brain of the platform
+  - login, query dispatch, query optimization, key management for encryption, etc
+  - runs on compute managed by snowflake
+- snowflake is saas - all three layers of snowflake run on selected cloud provider - aws, gcp, azure
+- we also need to select the region based on the cloud provider we choose
+- choice of these influence our cost of snowflake infrastructure, data egress costs, etc
+
+## Snowflake Costs
+
+- we are charged using **credits**. it is a unit of measure which is consumed when we use snowflake resources
+- our cost = compute + storage + data transfer + cloud services + serverless
+- compute cost - 
+  - three factors - number of virtual warehouses, size of virtual warehouses and how long they run
+  - we are charged even if the warehouse is idle
+  - we are not charged when the warehouse is **suspended** - so, guard rails like **auto suspend** are important to save costs
+  - we are charged for a minimum of 60 seconds, and every second the warehouse is not suspended from then
+- storage cost - 
+  - the default compression leads to reduced costs
+  - calculated based on average terabytes used daily over the month
+  - three main costs - data in stages, data stored in tables, features like failsafe and time travel
+  - also influenced by type of storage - **on demand** vs **capacity** - capacity is pre purchased, thus leading to much lesser costs
+- data transfer cost - 
+  - cost is incurred if data is transferred
+    - from one region to another
+    - from one cloud to another
+  - a **data egress** charge is applied by the cloud providers - data ingress is typically free
+  - charge is per byte
+- cloud services cost - 
+  - collection of services like metadata management, query processing and optimization, authentication, etc
+  - charged if consumption exceeds 10% of total compute resources
+  - it is calculated on a daily basis
+- serverless cost - 
+  - uses compute managed by snowflake
+  - snowflake automatically decides the ideal size and scales its compute automatically based on it
+  - cost is per second per core
+  - each serverless feature appears as a different line item in the bill
+  - costs incurred by some of the different serverless features are described below
+  - snowpipe - loads data from stages to tables automatically
+    - compute costs
+    - costs for number of files processed
+  - materialized views - 
+    - cost of compute used for the pre computation using the background process
+    - storage costs
+  - database replication - 
+    - costs of compute for the synchronization
+    - cost of data transfer from one region to another
+    - cost of storage used by target database 
+  - search optimization - used when selective filters used repeatedly only return a small amount of rows from the huge data. an "access path structure" is maintained for the efficient querying
+    - storage costs for maintaining the structure
+    - compute costs for maintaining the structure
+  - clustering - snowflake stores data in a sorted way to improve query performance. can be automatic or based on columns we specify
+    - costs for initial clustering
+    - costs for reclustering - reclustering happens periodically when our dml causes the clustering to fall out of sync significantly
+
+## Cost Governance Framework
+
+- **visibility** - understand, attribute and monitor the spend. e.g. [dashboards](#dashboards), [tagging](#query-tagging), [resource monitors](#resource-monitors)
+- **control** - [limit and control](#control-strategies) the spend
+- **optimization** - optimize the spend
+
+## Dashboards
+
+### Consumption Dashboard
+
+- admin -> cost management -> consumption will show credit consumption 
+
+![](/assets/img/warehouse-and-snowflake/consumption%20dashboard.png)
+
+- usage type - select one of 
+  - compute - guessing compute includes all three - user managed warehouses, serverless features and cloud services
+  - storage
+  - data transfer
+
+- in this dashboard, we can change the grouping (by service, by resource, etc), change the date range (last 7 days, last 28 days, etc), and so on
+
+### Custom Dashboard 1
+
+- based on how we group, we either see for e.g. costs incurred by different database, or costs incurred by failsafe vs database
+- there is a read only database called `snowflake`, with a schema called `account_usage`. it has several views which contain data about the historical usage and costs associated with it 
+- `warehouse_metering_history` - per virtual warehouse consumption at an hourly level
+  ```sql
+  select
+      date_trunc('day', start_time),
+      credits_used,
+      credits_used_cloud_services,
+      credits_used_compute
+  from
+      snowflake_finance.account_usage.warehouse_metering_history
+  where
+      start_time = :daterange
+  ```
+- i guess `credits_used` = `credits_used_cloud_services` + `credits_used_compute`
+- using the daterange filter helps us pick custom date ranges from the date picker
+- now, when creating a bar chart, values in x axis are unique. therefore, we need to select an aggregation type for values in y axis. we use sum
+- my understanding - right now, we fetch all records in the given range, and rely on our tile configuration capabilities. we can rely on the query to do that as well
+  ```sql
+  select
+      date_trunc('day', start_time),
+      sum(credits_used),
+      sum(credits_used_cloud_services),
+      sum(credits_used_compute)
+  from
+      snowflake_finance.account_usage.warehouse_metering_history
+  where
+      start_time = :daterange
+  group by
+      1
+  ```
+- note - in our tile configuration, we will still have to provide the aggregation function etc, since the tile does not understand we have already ensured unique values for our x axis
+- **orientation** can be vertical or horizontal
+- **grouping** can be grouped (one beside another) or stacked (one on top of another)
+- we can also identify the direction of ordering etc
+
+![](/assets/img/warehouse-and-snowflake/custom-dashboard-1-warehouse.png)
+
+- till now, whatever we saw till now tells us credits used by virtual warehouses. these include - 
+  - virtual warehouses managed by us
+  - virtual warehouses managed y cloud services
+- we can also monitor credits used by serverless compute. recall how it is broken down by services
+- so, we use `metering_history` for this, and filter out the rows for virtual warehouses by using `service_type != 'WAREHOUSE_METERING'` (we already created a chart for the warehouse_metering table above)
+  ```sql
+  select
+      date_trunc('month', start_time),
+      service_type,
+      sum(credits_used)
+  from
+      snowflake_marketing.account_usage.metering_history
+  where
+      start_time = :daterange
+      and service_type != 'WAREHOUSE_METERING'
+  group by
+      1, 2
+  ```
+
+![](/assets/img/warehouse-and-snowflake/custom-dashboard-1-serverless.png)
+
+### Custom Dashboard 2
+
+- we can for e.g. budget 18,000 credits for snowflake for a year - this means 18,000 / 12 = 1500 credits per month
+- we can also establish a **baseline** - forecast based on usage values over previous months
+- note - while we are calculating these values in our dashboard, we would ideally store it in a table and query it for our tile
+  ```sql
+  set baseline_start_date = '2021-09-01';
+  set baseline_end_date = '2021-12-31';
+  
+  set baseline = (
+      select
+          round(sum(credits_used), 2) / 4
+      from
+          snowflake_finance.account_usage.metering_history
+      where
+          start_time between $baseline_start_date and $baseline_end_date
+  );
+  ```
+- now, we can create the chart for the expected / baseline / budgeted amount vs the actual consumed credits - 
+  ```sql
+  select
+      date_trunc('month', start_time),
+      sum(credits_used),
+      $baseline baseline
+  from
+      snowflake_finance.account_usage.metering_history
+  where
+      start_time = :daterange
+  group by
+      1
+  ```
+- the chart looks as follows - 
+  ![](/assets/img/warehouse-and-snowflake/custom-dashboard-ii-baseline-vs-actual-without-bucketing.png)
+- issue - the chart is not **bucketed** for the x axis properly. choose bucketing as month
+  ![](/assets/img/warehouse-and-snowflake/custom-dashboard-ii-baseline-vs-actual-with-bucketing.png)
+- final improvement - our budgeted amount adds up - e.g. if we budgeted 1500 credits, it adds up over the month, it does not stay at a constant. so does our consumption. such calculations are also called **year to date** i believe
+  ```sql
+  with usage as (
+      select
+          date_trunc('month', start_time) month,
+          sum(credits_used) credits_used,
+          $baseline credits_expected
+      from
+          snowflake_finance.account_usage.metering_history
+      where
+          start_time = :daterange
+      group by
+          1
+  )
+  select
+      month,
+      sum(credits_used) over (order by month) total_credits_used_till_now,
+      sum(credits_expected) over (order by month) total_credits_expected_till_now
+  from
+      usage
+  ```
+- so, we use window functions. my understanding - we only need cumulative, and so we use the sum function and order by month. we do need to partition using a column
+  ![](/assets/img/warehouse-and-snowflake/custom-dashboard-ii-baseline-vs-actual-year-to-date.png)
+
+## Warehouse Utilization
+
+- track this using `warehouse_load_history`
+- `avg_queued_load` - average number of queries queued - 
+  - warehouse was overloaded - evaluate using multi cluster warehouses
+  - this might also indicate that our warehouses have been spinning up and down frequently, thus being unable to cache data efficiently and therefore return results quickly. solution - evaluate settings for auto suspend and auto resume, ensure that the same warehouse is used for the same query, etc
+  
+  ```sql
+  select
+      start_time,
+      avg_queued_load
+  from
+      snowflake_marketing.account_usage.warehouse_load_history
+  where
+      start_time = :daterange
+  ```
+
+![](/assets/img/warehouse-and-snowflake/warehouse-utilization-queued-load.png)
+
+- `avg_running` - average number of queries executed
+  - recall that a single virtual warehouse is a cluster of compute nodes
+  - consolidation - if we have two bi applications that rarely use a warehouse concurrently, we can use the same warehouse for both of the applications to reduce costs
+
+  ```sql
+  select
+      date_trunc('day', start_time),
+      max(avg_running)
+  from
+      snowflake_marketing.account_usage.warehouse_load_history
+  where
+      start_time = :daterange
+  group by
+      1
+  ```
+
+![](/assets/img/warehouse-and-snowflake/warehouse-utilization-running.png)
+
+## Object Tagging
+
+- we need to **bucket** costs by attributing it with tags
+- **chargeback model** - apply costs of it services to the business team that uses them
+- creating tags and adding it to objects -
+  ```sql
+  create tag "635de402978_tag" comment = 'product name';
+  
+  alter table product2_tbla set tag "635de402978_tag" = '6b27e2dc9_value';
+
+  select * from snowflake.account_usage.tag_references;
+  ```
+- querying using tags -  
+  ```sql
+  use database snowflake;
+  use schema account_usage;
+  
+  select
+      tag_references.tag_value,
+      sum(table_storage_metrics.active_bytes) total_bytes,
+      count(*) total_tables
+  from
+      tag_references
+      left join table_storage_metrics on table_storage_metrics.id = tag_references.object_id
+  where
+      tag_references.domain = 'TABLE'
+      and tag_references.tag_name = '635de402978_TAG'
+  group by
+      tag_references.tag_value
+  ```
+- below points are my understanding -
+  - the table `tag_references` in `snowflake.account_usage` will give us what object is tagged with what
+  - we can now perform a join with tables like `table_storage_metrics`
+  - we perform a join - maybe because objects to tags is one to many. maybe a left join is used to report 0 for business units with no objects
+  - we filter for only objects of type table and the tag we are looking to report on - e.g. product name in our case
+  - we group using the distinct tag values, and perform an aggregation on the active bytes
+
+## Query Tagging
+
+- **object tagging** allows us to tag objects like databases, warehouses, etc
+- **query tagging** allows us to tag queries
+- while we _do not_ have access to the credits consumed for these queries
+- we do have access to things like partitions scanned, average time elapsed, etc
+- e.g. tag all the queries in a dashboard to efficiently get analytics around the queries in it
+  ```sql
+  alter session set query_tag = 'xyz';
+  ```
+- running analysis on this - 
+  ```sql
+  select
+      count(*) total_selects,
+      avg(total_elapsed_time) avg_run_time,
+      date_trunc('day', start_time) date
+  from
+      snowflake_marketing.account_usage.query_history
+  where
+      start_time = :daterange
+      and query_tag = 'query tag f493ed5ca5aecf3b77b2c154cdc0b708'
+      and query_type = 'SELECT'
+  group by
+      date
+  ```
+
+## Resource Monitors
+
+- **resource monitors** - warehouses can be assigned resource monitors
+- we can define a limit on the number of credits consumed - when this limit is reached, we can be notified
+- notification works on both user managed warehouses and warehouses managed by cloud services
+
+![](/assets/img/warehouse-and-snowflake/resource-monitor-visiblity.png)
+
+- in the above resource monitor, we - 
+  - set credit quota to 1
+  - monitor type - we can monitor the entire account or only a specific warehouse
+  - select the warehouse to monitor - a warehouse can have only one resource monitor, but the same resource monitor can be used for multiple warehouses
+  - start monitoring immediately, and never stop monitoring
+  - reset the monitor daily - it starts tracking from 0 again
+  - notify when 75% and 100% of the quota is consumed
+- i ran this statement to modify the users to be notified - 
+  ```sql
+  alter resource monitor costgov_wh_rm set notify_users = ('COSTGOV_LEARNER');
+  ```
+- finally, on reaching the consumption, i get an email as follows - 
+
+![](/assets/img/warehouse-and-snowflake/resource-monitor-notification.png)
+
+- note - i also had to enable receiving notifications in my profile - 
+
+![](/assets/img/warehouse-and-snowflake/enable-resource-monitor-notifications.png)
+
+- till now, we saw the **visibility** aspect of resource monitors, now we look at its **control** aspect
+- we can only suspend user managed warehouses, not ones managed by cloud services
+- we can choose to suspend either after running queries complete, or after cancelling all running queries
+
+## Control Strategies
+
+- **virtual warehouses** can be **single cluster** or **multi cluster**
+- changing warehouse size helps with vertical scaling (scaling up) i.e. processing more complex queries
+- using multi cluster warehouse helps with horizontal scaling (scaling out) i.e. processing more concurrent queries
+- some features of warehouses include to control spend include -
+  - **auto suspend** - automatically suspend warehouses if there is no activity
+  - **auto resume** - automatically restart the warehouse when there are new queries
+  - **auto scaling** - start warehouses dynamically if queries are queued. bring them down when queue becomes empty. there are two scaling policies - **standard** and **economic**. first prefers starting additional warehouses, while the second prefers conserving credits
+- `statement_queued_timeout_in_seconds` - statements are dropped if queued for longer than this. default is 0 i.e. never dropped
+- `statement_timeout_in_seconds` - statements are cancelled if they run for longer than this. default is 48hrs
