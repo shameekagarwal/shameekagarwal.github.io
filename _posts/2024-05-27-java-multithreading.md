@@ -913,6 +913,7 @@ for (Thread t : threads) {
 - remember - we can easily end up in a deadlock - assume all philosophers acquire the fork on their left, and now all of them will wait for the fork on their right. two solutions are
   - only four philosophers at a time try acquiring a fork. this way, at least one philosopher will always be able to acquire two forks and it solves the problem
   - all the philosophers but one try acquiring the left fork first, and then the right fork. one of them tries acquiring the right fork first. note that the order in which forks are released does not matter
+  - only allow picking up of the fork if both the forks are available, do not pick and hold one fork
 - tip - do not insert sleeps - we will see a deadlock quickly
 
 ### Table

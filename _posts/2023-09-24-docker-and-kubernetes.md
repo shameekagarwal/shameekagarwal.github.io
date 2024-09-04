@@ -284,7 +284,7 @@ the `npm` in the command is the service name inside docker compose, and entrypoi
 ## About Kubernetes
 
 - kubernetes is the most widely used container scheduler
-- modern infrastructure is created using immutable images, and an upgrade is performed by replacing the older images with newer ones using rolling updates
+- modern infrastructure is created using immutable images, and an upgrade is performed by replacing the older containers with newer ones using rolling updates
 - we specify how many resources to run and kubernetes maintains that number
 - it ensures that the resources run within the specified memory and cpu constraints
 - kubernetes is cloud-agnostic and can also be run on-prem
@@ -519,6 +519,7 @@ only the first part has been described here, the remaining parts are similar to 
     periodSeconds: 5
     failureThreshold: 3
   ```
+- note - this is http, but i think health checks at tcp level are supported as well
 
 ## Readiness Probe
 
@@ -1047,7 +1048,7 @@ spec:
 - burstable - at least one container has limit / request defined, unequal limits and requests, etc
 - best effort - no resources are defined at all
 - we can view the qos assigned by kubernetes using `kubectl describe pod pod_name | grep QoS`
-- additional concept - priority classes are useful for e.g. when two pods have the same `qosClass`. we can run `k get priorityClasses` and then assign one of the values using `priorityClassName` under `spec` of the pod
+- additional concept - priority classes are useful for e.g. when two pods have the same `qosClass`. we can run `k get priorityClasses` and then assign one of the values using `priorityClassName` under `spec` of the pod. note that this concept is entirely different from qos, refer [documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#priorityclass)
 
 ### Limit Ranges
 
@@ -1097,7 +1098,11 @@ spec:
 - nfs is the way to go for disk storage in cloud. here, aws ebs has been shown
 - note: ebs volumes should only be spun up in azs where worker nodes exist, since ebs is scoped to an az
 - the `spec.capacity.storage` in the persistent volume defn. should be <= the capacity of ebs
-- access modes can be `ReadWriteOnce`, `ReadOnlyMany`, `ReadWriteMany`
+- access modes can be
+  - `ReadWriteOnce` - can be mounted as read write by one node only. note that multiple pods on the same node can still use it
+  - `ReadOnlyMany` - can be mounted as read only by multiple nodes
+  - `ReadWriteMany` - can be mounted as read write by multiple nodes
+  - `ReadWriteOncePod` - only one pod can read from / write to it
 - we can run `kubectl get storageclasses` to get the available storage classes
 - e.g. if we were using kops with aws, it would automatically add the storage class of gp2 for us
 - default storage class admission controller observe requests for persistent volume claims and when a claim does not specify the storage class, it gets assigned the default storage class. when we run `kubectl get storageclasses`, we see that gp2 is marked as default
@@ -1129,7 +1134,7 @@ spec:
 - the default reclaim policy of a persistent volume is `Retain`. first, the pod / deployment is deleted, and then the persistent volume claim is deleted. now, the persistent volume has status of released. but it is not available to be bound because it already has existing data from previous pods which need to be deleted first
 - so, we delete the persistent volume manually, try to clean up / delete the aws ebs manually and then can create new persistent volumes for the persistent volume claims
 - till now, we used the manual method of provisioning volumes, i.e. static persistent volumes
-- the dynamic method requires lesser intervention
+- the dynamic method requires lesser intervention - we do not have to manually create the underlying storage volume or the persistent volume, k8s creates these for us automatically by inspecting the pvc, and finally binds the pv to our pvc
 - however, in case of a conflict, kubernetes will choose the static one
 - important - the persistent volume is "created automatically" in case of dynamic persistent volumes, based on the persistent volume claim that we create
 - when we delete the deployment and then the persistent volume claim now, the persistent volume as well as the actual nfs ebs volume is deleted automatically. this is because when using dynamic persistent volumes, the reclaim policy of the persistent volume is `Delete`
