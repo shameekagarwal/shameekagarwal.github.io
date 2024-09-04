@@ -20,7 +20,7 @@ timezone: Asia/Kolkata
 
 title: Shameek Agarwal # the main title
 
-tagline: A Software Engineer # it will display as the sub-title
+tagline: Senior Software Engineer # it will display as the sub-title
 
 description: >- # used by seo meta and the atom feed
   A minimal, responsive and feature-rich Jekyll theme for technical writing.

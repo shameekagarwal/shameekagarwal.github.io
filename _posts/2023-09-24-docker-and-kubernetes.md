@@ -39,7 +39,7 @@ title: Docker and Kubernetes
 - Dockerfile is a special file name, as it is the default file docker looks for when we build an image
 - Dockerfile contains the instructions for creating our own image
 - example of a Dockerfile
-  ```Dockerfile
+  ```txt
   FROM node:14-alpine
   WORKDIR /app
   COPY . .
@@ -55,7 +55,7 @@ title: Docker and Kubernetes
 - images have layers i.e. docker caches result after every instruction in the Dockerfile
 - this means docker can reuse layers if possible - e.g. two different react applications use the same base image - node layer
 - so, to optimize i.e. make building of images faster, in the Dockerfile example shown earlier, we can first install dependencies and then copy the source code, as rebuilding of image will be triggered more frequently by a change in the source code than it will be by a change in the dependencies
-  ```Dockerfile
+  ```txt
   FROM node:14-alpine
   WORKDIR /app
   COPY package.json .
@@ -93,7 +93,7 @@ title: Docker and Kubernetes
   - `-a` helps list intermediate images as well
   - `-f` force removal, e.g. if image is referenced by another image
 - we can use a file `.dockerignore` to prevent copying files when using command `COPY` inside the Dockerfile e.g.
-  ```
+  ```txt
   node_modules
   Dockerfile
   .git
@@ -162,7 +162,7 @@ title: Docker and Kubernetes
 
 ### Example
 
-```Dockerfile
+```txt
 ARG DEFAULT_PORT=80
 ENV PORT $DEFAULT_PORT
 EXPOSE $PORT
@@ -195,7 +195,7 @@ EXPOSE $PORT
 - examples of usage - `docker network create --driver bridge` or `docker container run --network host`
 - we can clean up unused networks using `docker network prune`
 - the bridge type of network uses network namespaces behind the scenes. so, on running `ip addr`, we see docker0, which is basically the virtual switch in network namespaces. each container is encapsulated inside its own network namespace. an e.g. is shown below -
-  ```sh
+  ```txt
   docker container run nginx
   docker container inspect <<container_name>> | grep SandboxKey
   # the output is /var/run/docker/netns/<<namespace-name>>
@@ -236,7 +236,7 @@ EXPOSE $PORT
 - we can replace what is there in ENTRYPOINT using `--entrypoint`
 - useful tip - since a space separated command needs to be a part of different items in an array, use `sh -c`. i.e. `CMD ["a", "b", "c"]` can become `CMD ["sh", "-c", "a b c"]`
 
-```Dockerfile
+```txt
 FROM ubuntu
 ENTRYPOINT [ "sleep" ]
 CMD [ "10" ]
@@ -253,14 +253,14 @@ how do we set up initial project e.g. how to run `npm init` when we don't have n
 
 Dockerfile.setup -
 
-```Dockerfile
+```txt
 FROM node:14-alpine
 WORKDIR /app
 ```
 
 docker-compose-setup.yml -
 
-```yaml
+```txt
 version: "3.8"
 services:
   npm:
@@ -284,7 +284,7 @@ the `npm` in the command is the service name inside docker compose, and entrypoi
 ## About Kubernetes
 
 - kubernetes is the most widely used container scheduler
-- modern infrastructure is created using immutable images, and an upgrade is performed by replacing the older images with newer ones using rolling updates
+- modern infrastructure is created using immutable images, and an upgrade is performed by replacing the older containers with newer ones using rolling updates
 - we specify how many resources to run and kubernetes maintains that number
 - it ensures that the resources run within the specified memory and cpu constraints
 - kubernetes is cloud-agnostic and can also be run on-prem
@@ -297,7 +297,7 @@ the `npm` in the command is the service name inside docker compose, and entrypoi
 - kubectl is the kubernetes command line tool which allows to manage a kubernetes cluster
 - add alias to .bashrc - `alias kubectl="minikube kubectl --"`
 - configuring autocomplete for kubectl (restart terminal after running the command) -
-  ```bash
+  ```txt
   echo 'source <(kubectl completion bash)' >> ~/.bashrc
   ```
 - minikube can be deployed as a vm or as a container (i am trying as a container for now)
@@ -307,12 +307,12 @@ the `npm` in the command is the service name inside docker compose, and entrypoi
   - `minikube config set cpus 4`
 - view config using `minikube config view` or `cat ~/.minikube/config/config.json`
 - start minikube -
-  ```bash
+  ```txt
   minikibe start
   minikube status
   ```
 - pointing docker client installed locally to minikube's docker daemon -
-  ```bash
+  ```txt
   docker container ls
   minikube docker-env
   eval $(minikube -p minikube docker-env)
@@ -347,7 +347,7 @@ the `npm` in the command is the service name inside docker compose, and entrypoi
 - **kubeadm runs etcd as a static pod on the master nodes**
 - we specify its ip address and port on the api server
 - an example of using etcdctl api version 3 - 
-  ```sh
+  ```txt
   kubectl exec etcd-minikube --namespace=kube-system -- sh -c \
     "ETCDCTL_API=3 etcdctl get / \
     --prefix --keys-only --limit=100 \
@@ -377,7 +377,7 @@ the `npm` in the command is the service name inside docker compose, and entrypoi
 - for instance, the master node expects heartbeats from the worker nodes. the node controller monitors them and if the heartbeats do not reach the master nodes for a certain time period, the pods on it are evicted
 - similarly, we have replication controller to maintain the number of pods of the same type
 - the controller manager package installs all the different controllers. to view the different controllers, use - 
-  ```sh
+  ```txt
   kubectl get pod kube-controller-manager-minikube \
     --namespace=kube-system --output=yaml | grep controllers
   ```
@@ -507,7 +507,7 @@ only the first part has been described here, the remaining parts are similar to 
 - `periodSeconds` - after how many seconds should the probe be repeated
 - `failureThreshold` - how many consecutive health checks are allowed to fail
 - code example
-  ```yaml
+  ```txt
   name: api
   image: user-service
   livenessProbe:
@@ -519,6 +519,7 @@ only the first part has been described here, the remaining parts are similar to 
     periodSeconds: 5
     failureThreshold: 3
   ```
+- note - this is http, but i think health checks at tcp level are supported as well
 
 ## Readiness Probe
 
@@ -538,7 +539,7 @@ only the first part has been described here, the remaining parts are similar to 
 - we should not create pods or even replica sets directly
 - deployments create replica sets behind the scenes
 - when we make an update to for e.g. the image version, the deployment will first create a new replica set with the desired number of pods, and once that replica set has successfully scaled the pods, the deployment would mark the desired replicas of the older replica set as 0. a part of `kubectl describe deployment db` -
-  ```
+  ```txt
   Type    Reason             Age    Message
   ----    ------             ----   -------
   Normal  ScalingReplicaSet  12m    Scaled up replica set db-5cc56bf6fb to 1
@@ -552,7 +553,7 @@ only the first part has been described here, the remaining parts are similar to 
 - in recreate, the old pods are stopped and new ones are created in its place. this leads to some downtime. use recreate when the coexistence of two versions of the applications can cause inconsistencies e.g. db migrations
 - in rolling deployments, the new replica set is scaled up and the old replica set is scaled down simultaneously gradually. they can be tweaked using `maxSurge` and `maxUnavailable` fields. at any given time, we can have a maximum of desired + `maxSurge` or a minimum of desired - `maxUnavailable` pods running. both can be absolute numbers or % and both default to 25%. since both versions of applications run in parallel, the response can be returned from either of the versions at random during deployment
 - e.g. of rolling deployment - by using the following code, the deployment order is 3 old &#10141; 3 old, 1 new &#10141; 2 old, 1 new &#10141; 2 old, 2 new &#10141; 1 old, 2 new &#10141; 1 old, 3 new &#10141; 3 new
-  ```yaml
+  ```txt
   replicas: 3
 
   strategy:
@@ -600,7 +601,7 @@ only the first part has been described here, the remaining parts are similar to 
 - my understanding - recall how a service based on labels can only expose a set of pods. instead of multiple node ports / load balancers i.e. one for each set of pods, we have one node port / load balancer which directs traffic to the ingress service. the ingress service can then direct traffic to the different cluster ips in the cluster
 - kubernetes provides the ingress resource but not the ingress controller i.e. it provides the api which can be utilized by other third party implementations
 - minikube has an addon that can be enabled
-  ```bash
+  ```txt
   minikube addons enable ingress
   minikube addons list | grep ingress
   ```
@@ -615,7 +616,7 @@ only the first part has been described here, the remaining parts are similar to 
 - note: to simulate that requests are coming from a specific domain on our local, we can use `curl -H "Host: custom-api.com" http://192.168.49.2/api/`
 - the ingress resource provided by kubernetes has limited functionality, so to configure the ingress controller provided by third party, we use annotations
 - e.g. we want traffic from ingress-service/calendar to our calendar-cluster-ip:port. so, the calendar prefix should be removed. we can do this by using the annotation below - 
-  ```yaml
+  ```txt
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
   ```
@@ -649,7 +650,7 @@ only the first part has been described here, the remaining parts are similar to 
 - we can copy this configuration file to minikube and then use host path volumes to reference it
 - in this example, a better solution would have been to create a custom image and use `COPY` in the docker file
 
-```yaml
+```txt
 # ...
 spec:
   containers:
@@ -683,7 +684,7 @@ spec:
 - imperative command - `kubectl create configmap prometheus-config --from-file=prometheus-conf.yml`
 - `kubectl describe configmap prometheus-config`
 - using in the yml file - 
-  ```yaml
+  ```txt
   spec:
     containers:
       - # ...
@@ -703,14 +704,14 @@ spec:
 ### Environment Variables
 
 - e.g. create a file called .env
-  ```
+  ```txt
   client-id=qwerty
   client-secret=12345
   ```
 - `kubectl create configmap api-credentials --from-env-file=.env`
 - my understanding - the difference between `--from-file` vs `--from-env-file` is in from file, kubernetes does not care about the file's content, while in from env file, it knows how to treat as different key value pairs, so that it can inject them all at once / individually as discussed below
 - usage - 
-  ```yaml
+  ```txt
   containers:
       #...
       envFrom:
@@ -719,7 +720,7 @@ spec:
   ```
 - verify using `kubectl exec alpine -- env`
 - we can also inject the variables of the config map individually - 
-  ```yaml
+  ```txt
   containers:
       #...
       env:
@@ -738,18 +739,18 @@ spec:
   - tls - for storing certificates
   - generic - works like config maps, so can have sources like `--from-env-file`, `--from-file`, `--from-literal`
 - creating a secret imperatively -
-  ```sh
+  ```txt
   kubectl create secret generic jenkins-credential \
     --from-literal=username=johndoe \
     --from-literal=password=incognito
   ```
 - to retrieve the original value - 
-  ```sh
+  ```txt
   kubectl get secret jenkins-credential --output=json
   kubectl get secret jenkins-credential --output=jsonpath="{.data.password}" | base64 --decode
   ```
 - to use the secrets, we put them into files /etc/secret/jenkins-user and /etc/secret/jenkins-pass -
-  ```yaml
+  ```txt
   spec:
     containers:
       - # ...
@@ -771,13 +772,13 @@ spec:
 - we made it read only for all users using 0444 as the mode
 - verify using `kubectl exec pod_name -- cat /etc/secrets/jenkins-pass`
 - if creating secrets declaratively, the values should be base64 encoded first
-  ```yaml
+  ```txt
   # ...
   data:
     username: am9obmRvZQ==
   ```
   using sh base64 utility - 
-  ```sh
+  ```txt
   # to encode
   echo -n johndoe | base64
   
@@ -794,7 +795,7 @@ spec:
 - sometimes we might need private registry
 - we use `docker login` when using vanilla docker
 - when using kubernetes, we can create the secret of type `docker-registry`
-  ```sh
+  ```txt
   kubectl create secret docker-registry registry-credential \
     --docker-server=...\
     --docker-username=...\
@@ -802,7 +803,7 @@ spec:
     --docker-email=...
   ```
 - we can then specify the name of the secret in pod
-  ```yaml
+  ```txt
   spec:
     imagePullSecrets:
       - name: registry-credential
@@ -838,7 +839,7 @@ spec:
 - contexts pair the clusters to users. so, they have the cluster, user and even the namespace to use by default
 - the one used by default by kubectl is defined via `current-context`
 - create a new cluster - 
-  ```sh
+  ```txt
   cp ~/.minikube/ca.crt .
   
   kubectl config set-cluster johndoe \
@@ -848,13 +849,13 @@ spec:
   kubectl config get-clusters # verify that the cluster is created
   ```
 - create a new user - 
-  ```sh
+  ```txt
   kubectl config set-credentials johndoe \
     --client-certificate johndoe.crt \
     --client-key johndoe.key
   ```
 - create and set the context - 
-  ```sh
+  ```txt
   kubectl config set-context johndoe \
     --user johndoe \
     --cluster johndoe # create / edit the context
@@ -893,7 +894,7 @@ spec:
 - to verify if an operation can be performed, we can use for instance `kubectl auth can-i get pods`
 - we can impersonate as someone else using `kubectl auth can-i get pods --as=johndoe`
 - creating a role binding - 
-  ```sh
+  ```txt
   kubectl create rolebinding johndoe \
     --clusterrole=view \
     --user=johndoe \
@@ -904,7 +905,7 @@ spec:
 - delete a role binding using `kubectl delete rolebinding johndoe`
 - using role bindings, we can attach one role to multiple subjects
 - declaratively creating a cluster role binding using yaml -
-  ```yaml
+  ```txt
   apiVersion: rbac.authorization.k8s.io/v1
 
   kind: ClusterRoleBinding
@@ -926,7 +927,7 @@ spec:
 - verify using `kubectl auth can-i get pods --as=johndoe --all-namespaces`
 - describing the admin cluster role created by default - `kubectl describe clusterrole admin`
 - e.g. yml to create a custom role - 
-  ```yaml
+  ```txt
   apiVersion: rbac.authorization.k8s.io/v1
   
   kind: ClusterRole
@@ -968,7 +969,7 @@ spec:
   - `PreferNoSchedule` - prefer not scheduling
   - `NoExecute` - like `NoSchedule` but also evicts the existing pods on the node without the correct toleration
 - to apply toleration on pods, use -
-  ```yaml
+  ```txt
   spec:
     tolerations:
       - key: key
@@ -985,14 +986,14 @@ spec:
 - to label a node, we use - `kubectl label node node_name key=value`
 - we can use `kubectl get nodes --show-labels` to verify
 - to apply selectors for labels on nodes, use - 
-  ```yaml
+  ```txt
   spec:
     nodeSelector:
       size: large
   ```
 - but, using node selectors we cannot specify complex conditions
 - so, we use node affinity
-  ```yaml
+  ```txt
   spec:
     affinity:
       nodeAffinity:
@@ -1019,7 +1020,7 @@ spec:
 - can be written as for e.g. `0.5` or `500m` (500 milli cpu). 1 milli cpu is equivalent to 1 hyperthread / 1 vcpu
 - memory can be written as `K` or `Ki` for kilobyte, `M` or `Mi` for megabyte and so on. we can only specify the numerical value as well, its value is in bytes e.g. `256Mi` or `268435456`
 - syntax - 
-  ```yaml
+  ```txt
   containers:
       #... 
       resources:
@@ -1047,7 +1048,7 @@ spec:
 - burstable - at least one container has limit / request defined, unequal limits and requests, etc
 - best effort - no resources are defined at all
 - we can view the qos assigned by kubernetes using `kubectl describe pod pod_name | grep QoS`
-- additional concept - priority classes are useful for e.g. when two pods have the same `qosClass`. we can run `k get priorityClasses` and then assign one of the values using `priorityClassName` under `spec` of the pod
+- additional concept - priority classes are useful for e.g. when two pods have the same `qosClass`. we can run `k get priorityClasses` and then assign one of the values using `priorityClassName` under `spec` of the pod. note that this concept is entirely different from qos, refer [documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#priorityclass)
 
 ### Limit Ranges
 
@@ -1097,7 +1098,11 @@ spec:
 - nfs is the way to go for disk storage in cloud. here, aws ebs has been shown
 - note: ebs volumes should only be spun up in azs where worker nodes exist, since ebs is scoped to an az
 - the `spec.capacity.storage` in the persistent volume defn. should be <= the capacity of ebs
-- access modes can be `ReadWriteOnce`, `ReadOnlyMany`, `ReadWriteMany`
+- access modes can be
+  - `ReadWriteOnce` - can be mounted as read write by one node only. note that multiple pods on the same node can still use it
+  - `ReadOnlyMany` - can be mounted as read only by multiple nodes
+  - `ReadWriteMany` - can be mounted as read write by multiple nodes
+  - `ReadWriteOncePod` - only one pod can read from / write to it
 - we can run `kubectl get storageclasses` to get the available storage classes
 - e.g. if we were using kops with aws, it would automatically add the storage class of gp2 for us
 - default storage class admission controller observe requests for persistent volume claims and when a claim does not specify the storage class, it gets assigned the default storage class. when we run `kubectl get storageclasses`, we see that gp2 is marked as default
@@ -1109,7 +1114,7 @@ spec:
 - if no matching persistent volume is found, the persistent volume claim remains unbound indefinitely
 - [yaml example](https://gist.github.com/shameekagarwal/a2afa15e76ee80c75a2dc19bfd234a54) of persistent volume claim
 - usage - 
-  ```yaml
+  ```txt
   spec:
     containers:
       - # ...
@@ -1129,7 +1134,7 @@ spec:
 - the default reclaim policy of a persistent volume is `Retain`. first, the pod / deployment is deleted, and then the persistent volume claim is deleted. now, the persistent volume has status of released. but it is not available to be bound because it already has existing data from previous pods which need to be deleted first
 - so, we delete the persistent volume manually, try to clean up / delete the aws ebs manually and then can create new persistent volumes for the persistent volume claims
 - till now, we used the manual method of provisioning volumes, i.e. static persistent volumes
-- the dynamic method requires lesser intervention
+- the dynamic method requires lesser intervention - we do not have to manually create the underlying storage volume or the persistent volume, k8s creates these for us automatically by inspecting the pvc, and finally binds the pv to our pvc
 - however, in case of a conflict, kubernetes will choose the static one
 - important - the persistent volume is "created automatically" in case of dynamic persistent volumes, based on the persistent volume claim that we create
 - when we delete the deployment and then the persistent volume claim now, the persistent volume as well as the actual nfs ebs volume is deleted automatically. this is because when using dynamic persistent volumes, the reclaim policy of the persistent volume is `Delete`

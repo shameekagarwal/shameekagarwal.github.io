@@ -7,7 +7,8 @@ title: Data Engineering
 - oltp -
   - online transactional processing
   - used for operational data keeping
-  - we do not maintain a history of the data - we update records in place to reflect the current state of the system
+  - we do not maintain a history of the data
+  - we update records in place to reflect the current state of the system
 - olap -
   - online analytical processing
   - used for analytical decision making
@@ -66,27 +67,27 @@ title: Data Engineering
   - so, optimizations like pre computations, indexing, etc underneath make cubes very fast for complex queries
   - extra "cost of compute" to maintain these complex structures
   - so, imagine the recomputation in aggregations needed in case of updates
-  - earlier, cubes were an alternative to dimensional modelling and building warehouses using technologies like rdbms
+  - earlier, cubes were seen as an alternative to dimensional modelling, and instead of building warehouses using technologies like rdbms, people would use cubes
   - now, cubes can be seen as a specialized technology for the data mart layer
 - in memory databases - for high query performance, used in for e.g. data marts. in traditional databases, data is stored in hdd / ssd in disk and loaded into memory for querying. this is eliminated here to increase performance. challenge - lack of durability, resolve via snapshots / images to help restore to a specific point. e.g. sap hana, amazon memory db, etc
 - columnar storage - traditionally, queries are processed row wise. if we use columnar storage, data is stored column wise. so, if we need to process only a small subset of columns, we do not have to process entire rows and go through all the data like in traditional relational databases
 - massive parallel processing - a task can be broken down into multiple subtasks. this way, these subtasks can run in parallel, thus optimizing performance
-- in mpp above, we talked about breaking down compute. for scaling storage, the underlying architecture can be -
-  - shared disk architecture - underlying storage is one i.e. multiple computes run on top of the same underlying storage
-  - shared nothing architecture - underlying storage is also broken down i.e. each compute will have its own storage
+- in mpp above, we talked about breaking down compute. for scaling storage, the architecture can be -
+  - shared disk architecture - multiple compute servers run on top of the same storage
+  - shared nothing architecture - each compute server will have its own storage
 
 ## Warehouse Architecture
 
 - we put the data "as is" into the staging layer of the warehouse
 - we can do some minute transformations like renaming and adjusting positions of columns when performing a union between employee datasets from different sources
-- we put the data into the core / user access / warehouse layer by performing transformations from the staging layer
+- we put data into the core / user access / warehouse layer by running transformations on staging layer
 - why do we need a staging layer i.e. why not load into the warehouse layers directly from the sources -
   - we risk burdening our oltp systems
   - also, data from sources can be in different formats like crm, files like xml, etc. we get all the data from these different sources into for e.g. a relational db, which helps us use sql / a standard way to perform transformations, e.g. perform joins easily which would not be possible otherwise when data comes from different sources
 - staging layer can be temporary (more common) or permanent
-- temporary - after the data is loaded into the warehouse layer, we truncate the staging layer. this way, the next time we want to load data into the warehouse layer, we need to perform a diff - we need to know the last inserted row inside the warehouse layer, and calculate the new rows inside the sources since then, and accordingly add the new data to the warehouse. this diff checking can be done on columns like timestamp if maintained
+- temporary - after the data is loaded into the warehouse layer, we truncate the staging layer. this way, the next time we want to load data into the warehouse layer, we need to perform a diff - we need to know the last inserted row inside the warehouse layer, and calculate the new rows inside the sources since then, and accordingly add the new data to the warehouse. this diff checking can be done on columns like timestamps
 - persistent staging layer - maybe easier since existing warehouse layer can be recreated / new warehouse layers can be created easily
-- we can either consume from the core layer directly, or have data marts on top. some use cases of having data marts - 
+- we can either consume from the core layer directly or have data marts on top. use cases -
   - core layer has a lot of tables - we can have data marts on top of this. now, users will only have access to tables which they need
   - core layer isn't burdened with queries from all consumers, and consumers only consume capacity of their data marts
   - allow us to have different types of databases, e.g. in memory vs cubes based on use case
@@ -96,7 +97,7 @@ title: Data Engineering
   - "edw" (enterprise data warehouses) - typical relational databases, columnar storages, etc
   - "data lake" - big data technologies like hadoop, s3, etc
 - "component based" - each consumer has its own data mart. advantage - allows for mix and match of technology based on use case. here, we have two options - 
-  - "dependent data marts" - this is the variation we have seen - data marts are built on top of the warehouse layer
+  - "dependent data marts" - this is what we saw, data marts are built on top of the warehouse layer
   - "independent data marts" - in this, we skip the warehouse layer. we make data marts directly consume from the sources and perform transformations. so, it is like we have small warehouse layers per consumer
 - general rule - we should strive towards "centralized" instead of "component based"
 - initial load - 
@@ -299,7 +300,7 @@ title: Data Engineering
 - "conformed dimensions" - dimensions shared across multiple facts, e.g. date dimension. advantages - 
   - helps combine the facts using the shared dimension. e.g. if we have two different facts for sales and profits, we can combine them using the date dimension. this helps us compare the cost and sales side by side
   - we can reuse the same dimension table across different dimensional models - this way, we save on the etl / storage costs of maintaining duplicate dimension tables
-- "degenerate dimension" - e.g. we have a sales fact table, with a foreign (surrogate) key for the category dimension. the category dimension only has two columns - the surrogate key and the category name. so, we can instead directly store the category name in the sales fact table. this usually occurs in the transactional fact table
+- "degenerate dimension" - e.g. we have a sales fact table, with a foreign (surrogate) key for the category dimension. the category dimension only has two columns - the surrogate key and the category name. so, we can instead directly store category name in the sales fact table. this is common in transactional fact table
 - "junk dimensions" - e.g. imagine we have a lot of indicators that are eating up a lot of width (therefore space) of the fact table, thus impacting its performance. so, we can instead extract these dimensions to its own table. note - the "cardinality" of these dimensions should be "low"
 - typically, we store all the possible values in the junk dimension. but, the number of rows in this junk dimension can grow a lot, e.g. m, n, p, q values for 4 columns respectively will mean a total of m * n * p * q combinations. so, we can - 
   - store the dimensions "as we come across them" in this junk dimension instead of storing all combinations in a precomputed fashion
@@ -322,7 +323,7 @@ title: Data Engineering
 
 - "role playing dimension" - 
   - same dimension table is referenced in the fact table multiple times
-  - e.g. date dimension for order date vs shipping date. note - this is also an example of [accumulation snapshot fact table](#accumulation-snapshot-fact-table)
+  - e.g. date dimension for order date vs shipping date. recall this is an e.g. of [accumulation snapshot fact table](#accumulation-snapshot-fact-table)
   - an additional optimization for bi - use views - data is not duplicated, but users see different dimension tables for the different "roles" the date dimension might be playing, thus increasing readability
 
 ## Slowly Changing Dimensions
@@ -340,7 +341,7 @@ title: Data Engineering
 - we overwrite the old data in the same row with the new values for its columns
 - so, no history is retained
 - e.g. a new category for biscuits was introduced. so, the category changes from snacks to biscuits
-- issue - this can suddenly kind of maybe show reduced sales for dashboards which were monitoring the category for snacks
+- issue example - this can suddenly show reduced sales for dashboards which were monitoring snacks
 
 ### Type 2
 
@@ -383,26 +384,9 @@ title: Data Engineering
 
 ### Type 3
 
-- we introduce a new columns for the different versions, as opposed to inserting new rows as in [type 2](#type-2)
+- we introduce new columns for the different versions, as opposed to inserting new rows as in [type 2](#type-2)
 - advantage - allows to switch back and forth between different versions easily
 - so we will have two columns - previous category and current category in the category dimension table
 - it is not for unpredictable / frequent changes, we use type 2 for that
 - this is for a more structured change like a reorganization at a company
 - this way, we can lay out a clear demise plan in place with maintaining backwards compatibility
-
-## ETL Design
-
-- our etl design is guided by our decisions of - 
-  - type of [slowly changing dimensions](#slowly-changing-dimensions) we use
-  - how we do cdc (change data capture) i.e. recall the [kind of incremental loads](#warehouse-architecture) we can use
-  - [type of fact table](#types-of-fact-tables) in our dimensional model
-- there are different ways to do cdc - 
-  - we can use the timestamp of the transaction. we can use the "watermark" for this - we keep track of the last etl run's timestamp. based on the value of the watermark, we need to look for new / updated data in the sources
-  - we can also use the "database logs" directly - debezium i believe uses this
-- we should also have some kind of "parallel processing" for more efficiency. however, we have to process dimension table changes before processing the fact table changes. even the dimension table changes need to be processed in order of dependency if we have a snowflake schema instead of a star schema
-- for dimension tables - 
-  - new data - we can look for natural keys in the source not present in our dimension table. then, we can insert them by additionally adding a surrogate key to them
-  - type 1 change example - "update all rows". why all rows - if a type 2 change for a different column occurs before the type 1 change for this column, we will have to update all the rows with the same natural key with the new value. why - when analyzing, it might happen that the older version of the dimension is relevant - we would still want the latest value for this column in the older version
-  - type 2 change example - we add a new surrogate key. the natural key stays the same however. we can update the effective / expiry date columns accordingly as well
-- for fact tables - 
-  - we need to get "the right row" from the dimension table, because there can be multiple rows for the same natural key due to type 2 scd. after this, we can add the new fact, if present, using the surrogate key of this latest dimension

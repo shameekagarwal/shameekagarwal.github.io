@@ -32,7 +32,7 @@ mermaid: true
 - subclass should not reduce the feature set offered by base class, only increase it
 - e.g. below violates liskov substitution -
 
-```java
+```txt
 class Vehicle {
 
   void startEngine() {}
@@ -48,7 +48,7 @@ class Bicycle extends Vehicle {
 
 - solution - break into different interfaces - 
 
-```java
+```txt
 class Vehicle {}
 
 class MotorVehicle {
@@ -73,7 +73,7 @@ class Bicycle extends Vehicle {}
 - can be achieved through techniques like "dependency injection" - dependencies are provided to the class from outside instead of the class itself instantiating them
 - thus implementations can also be swapped easily, e.g. - 
 
-```java
+```txt
 class Computer {
 
   private final Keyboard keyboard;
@@ -101,7 +101,7 @@ class WiredMouse implements Mouse {}
   - we establish the relationship between them
   - finally, we make the design that can be converted to executable code in our object oriented language
 - uml or unified modelling language helps model the object oriented analysis
-- it helps communicate design decisions easily by breaking down a complex system into smaller, understandable pieces
+- it helps communicate design decisions by breaking down a complex system into smaller, understandable pieces
 
 ### Use Case Diagrams
 
@@ -123,7 +123,7 @@ class WiredMouse implements Mouse {}
 - the representation of class has three sections - class name, properties and methods
 - "visibility" - we can put this ahead of the attributes / methods. `+` for public, `-` for private and `#` for protected and `~` for default
 - "associations" - if two classes communicate with each other, there needs to be a link between them
-- associations can be bidirectional (both classes are aware of each other) or unidirectional (only one class is aware)
+- associations can be bidirectional (both classes are aware of each other) or unidirectional (only one class is aware of the other one)
 - "multiplicity" - how many instances of the class participate in the relationship
 - "inheritance" is also called an "is a" relationship. denoted by open arrows (the head is not filled)
 - for abstract class, use italics
@@ -207,7 +207,7 @@ Screen->>Customer: Show Message
 
 - separate the representation of object from its construction process
 - e.g. helps prevent "telescoping constructors" - 
-  ```java
+  ```txt
   Aircraft(Engine engine);
   Aircraft(Engine engine, Cockpit cockpit);
   Aircraft(Engine engine, Cockpit cockpit, Bathroom bathroom);
@@ -704,10 +704,10 @@ class AutopilotFacade {
 - e.g. if we use a global radar to track air crafts, we will end up with too many air craft objects for the same air craft at different coordinates
 - "intrinsic state" - independent of the context of object. e.g. top speed of the air craft
 - "extrinsic state" - dependent of the context of object. e.g. coordinates of the air craft
-- so, to prevent creation of too many objects, we store intrinsic state inside the object, while extrinsic state outside it
+- so, to prevent creation of too many objects, we store intrinsic state inside the object, while the extrinsic state gets stored outside it
 - this way, we automatically end up with less objects, since we only need new objects when the intrinsic state changes, and not every time the extrinsic state changes
 - "flyweight" - the object has become light since it only stores intrinsic state now
-- "flyweight factory" - used to create the flyweight objects, because we do not want the client to create them directly
+- "flyweight factory" - creates the flyweight objects, because we do not want the client to create them directly
 - "context" - used to store the extrinsic state
 
 <details>
@@ -882,7 +882,7 @@ class F16 implements IObserver {
 - we cannot perform barrel rolls and splits one after another
 - we need to start and end with glide
 - the production rules will look like as follows - 
-  ```
+  ```txt
   <flight> -> <flight><show off><flight>
   <flight> -> glide
   <show off> -> barrel roll
@@ -894,7 +894,7 @@ class F16 implements IObserver {
   ![interpreter ast](/assets/img/low-level-design/interpreter-ast.drawio.png)
 - "abstract expression" - the interface
 - the abstract expression can be a "terminal expression" or a "non terminal expression"
-- the non terminal expression will hold a reference to the other abstract expressions based on the production rules
+- non terminal expression holds a reference to the other abstract expressions based on the production rules
 - how we interpret an expression depends on the "context"
 
 <details>
@@ -1062,7 +1062,7 @@ public class AirForceIterator implements Iterator {
 
 ### Mediator Pattern
 
-- encourage lose coupling between interacting objects
+- encourage loose coupling between interacting objects
 - by encapsulating interactions in a "mediator" object
 - the interacting objects are called "colleagues" and "concrete colleagues"
 - use when interactions between the colleagues becomes very complex
@@ -1114,7 +1114,7 @@ class ControlTower {
 - "originator" - the object whose state is captured
 - "memento" - the snapshot / the state which was captured
 - "caretaker" - the object that holds the memento
-- since `getState` is private, outside classes like for e.g. the caretaker cannot call `getState`, only the originator can
+- since `getState` is private, outside classes like caretaker cannot call `getState`, only the originator can
 
 <details>
 <summary>code example</summary>
@@ -1167,11 +1167,63 @@ class Caretaker {
 </pre>
 </details>
 
-### State Pattern - TODO
+### State Pattern
 
 - alter behavior of the object as its state changes
 - so that it appears to change its class
-- TODO: remaining 
+- e.g. assume a coffee machine goes through 3 states - idle, selecting and dispensing
+
+<details>
+<summary>code example</summary>
+<pre>
+<code>
+interface CoffeeMachineState {
+  void insertCoin();
+  void pressButton();
+  void dispense();
+}
+
+class IdleState implements CoffeeMachineState {
+
+  private CoffeeMachine machine;
+
+  public void insertCoin() {
+    System.out.println("Coin inserted. Please select your drink.");
+    machine.setState(machine.getSelectingState());
+  }
+
+  public void pressButton() {
+    System.out.println("Error: Insert a coin first.");
+  }
+
+  public void dispense() {
+    System.out.println("Error: Insert a coin and select a drink first.");
+  }
+}
+
+// similarly, write the other two states
+
+class CoffeeMachine {
+
+  private final CoffeeMachineState idleState = new IdleState(this);
+  private final CoffeeMachineState selectingState = new SelectingState(this);
+  private final CoffeeMachineState dispensingState = new DispensingState(this);
+ 
+  private CoffeeMachineState currentState = idleState;
+
+  public CoffeeMachineState getIdleState() { return idleState; }
+  public CoffeeMachineState getSelectingState() { return selectingState; }
+  public CoffeeMachineState getDispensingState() { return dispensingState; }
+
+  public void setState(CoffeeMachineState state) { this.currentState = state; }
+
+  public void insertCoin() { currentState.insertCoin(); }
+  public void pressButton() { currentState.pressButton(); }
+  public void dispense() { currentState.dispense(); }
+}
+</code>
+</pre>
+</details>
 
 ### Template Method Pattern
 
@@ -1185,8 +1237,7 @@ class Caretaker {
   - air pressure
   - if the door is locked
 - all these can be hooks i.e. specific to the aircraft
-- helps avoid "dependency rot" - where dependencies at various levels depend on each other horizontally and vertically
-- [factory method pattern](#factory-method-pattern) is a special form of the template method pattern
+- avoids "dependency rot" - where dependencies at various levels depend on each other horizontally and vertically
 
 ### Strategy Pattern
 
@@ -1229,7 +1280,7 @@ class Context {
 </pre>
 </details>
 
-### Visitor Pattern - TODO
+### Visitor Pattern
 
 - define operations for elements of an object without changing the class of this object
 - e.g. assume we want to monitor several metrics like fuel, altitude, etc on all the air crafts
@@ -1254,7 +1305,7 @@ interface Aircraft {
 class Boeing implements Aircraft {          class F16 implements Aircraft {
 
   void accept(AircraftVisitor visitor) {      void accept(AircraftVisitor visitor) {
-    visitor.visitBoeing(visitor);               visitor.visitF16(visitor);
+    visitor.visitBoeing(this);                  visitor.visitF16(this);
   }                                           }
 }                                           }
 
@@ -1274,3 +1325,53 @@ class FuelVisitor implements AircraftVisitor {   class DoorVisitor implements Ai
 </code>
 </pre>
 </details>
+
+#### Double Dispatch
+
+- assume we change our method to use "overloading" - rename all methods as just "visit"
+
+<details>
+<summary>code example</summary>
+<pre>
+<code>
+interface Aircraft {
+
+  void accept(AircraftVisitor visitor);
+}
+
+class Boeing implements Aircraft {          class F16 implements Aircraft {
+
+  void accept(AircraftVisitor visitor) {      void accept(AircraftVisitor visitor) {
+    visitor.visit(this);                        visitor.visit(this);
+  }                                           }
+}                                           }
+
+interface AircraftVisitor {
+
+  void visit(Boeing boeing);
+  void visit(F16 f16);
+}
+
+class FuelVisitor implements AircraftVisitor {   class DoorVisitor implements AircraftVisitor {
+
+  void visit(Boeing boeing) {}                     void visit(Boeing boeing) {}
+  void visit(F16 f16) {}                           void visit(F16 f16) {}
+}                                                }
+</code>
+</pre>
+</details>
+
+- assume we were calling the visitor methods directly - 
+  ```
+  Aircraft aircraft = new Boeing();
+  visitor.visit(aircraft);
+  ```
+- since this resolution is compile time, the compiler would not know which method of visitor to call
+- however, when we use the visitor pattern as recommended, we use "double dispatch"
+  ```
+  aircraft.accept(visitor)
+  ```
+- when we call the `visit` method using the aircraft itself
+  - first dispatch - compiler calls boeing's visit (dynamic polymorphism)
+  - second dispatch - because we use `this`, it calls the right one (static polymorphism)
+- so, this automatically works as expected!
