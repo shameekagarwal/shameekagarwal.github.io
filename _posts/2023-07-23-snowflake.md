@@ -838,7 +838,7 @@ title: Snowflake
 
 - `avg_running` - average number of queries executed
   - recall that a single virtual warehouse is a cluster of compute nodes
-  - consolidation - if we have two bi applications that rarely use a warehouse concurrently, we can use the same warehouse for both of them
+  - consolidation - if we have two bi applications that rarely use a warehouse concurrently, we can use the same warehouse for both of the applications to reduce costs
 
   ```sql
   select
@@ -920,16 +920,17 @@ title: Snowflake
 ## Resource Monitors
 
 - **resource monitors** - warehouses can be assigned resource monitors
-- we can define a limit on the number of credits consumed
-- when this limit is reached, we can be notified / warehouses can be suspended
-- my understanding - notification works on both user managed warehouses and warehouses managed by cloud services. however, we can only suspend user managed warehouses
+- we can define a limit on the number of credits consumed - when this limit is reached, we can be notified
+- notification works on both user managed warehouses and warehouses managed by cloud services
 
 ![](/assets/img/warehouse-and-snowflake/resource-monitor-visiblity.png)
 
-- in the above resource monitor, we set - 
-  - credit quota to 1
-  - select the warehouse to monitor
-  - start monitoring immediately, never stop monitoring and reset the monitor daily
+- in the above resource monitor, we - 
+  - set credit quota to 1
+  - monitor type - we can monitor the entire account or only a specific warehouse
+  - select the warehouse to monitor - a warehouse can have only one resource monitor, but the same resource monitor can be used for multiple warehouses
+  - start monitoring immediately, and never stop monitoring
+  - reset the monitor daily - it starts tracking from 0 again
   - notify when 75% and 100% of the quota is consumed
 - i ran this statement to modify the users to be notified - 
   ```sql
@@ -938,3 +939,23 @@ title: Snowflake
 - finally, on reaching the consumption, i get an email as follows - 
 
 ![](/assets/img/warehouse-and-snowflake/resource-monitor-notification.png)
+
+- note - i also had to enable receiving notifications in my profile - 
+
+![](/assets/img/warehouse-and-snowflake/enable-resource-monitor-notifications.png)
+
+- till now, we saw the **visibility** aspect of resource monitors, now we look at its **control** aspect
+- we can only suspend user managed warehouses, not ones managed by cloud services
+- we can choose to suspend either after running queries complete, or after cancelling all running queries
+
+## Control Strategies
+
+- **virtual warehouses** can be **single cluster** or **multi cluster**
+- changing warehouse size helps with vertical scaling (scaling up) i.e. processing more complex queries
+- using multi cluster warehouse helps with horizontal scaling (scaling out) i.e. processing more concurrent queries
+- some features of warehouses include to control spend include -
+  - **auto suspend** - automatically suspend warehouses if there is no activity
+  - **auto resume** - automatically restart the warehouse when there are new queries
+  - **auto scaling** - start warehouses dynamically if queries are queued. bring them down when queue becomes empty. there are two scaling policies - **standard** and **economic**. first prefers starting additional warehouses, while the second prefers conserving credits
+- `statement_queued_timeout_in_seconds` - statements are dropped if queued for longer than this. default is 0 i.e. never dropped
+- `statement_timeout_in_seconds` - statements are cancelled if they run for longer than this. default is 48hrs
