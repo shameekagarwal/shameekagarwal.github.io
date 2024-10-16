@@ -300,3 +300,42 @@ if __name__ == '__main__':
     spring.rabbitmq.listener.simple.retry.multiplier=2
     ```
   - retry at 3s, then 6s (refer multiplier), and remaining 2 retries at 10s gaps
+
+## Kafka Connect
+
+- it helps perform "streaming integration" between numerous sources and targets like relation databases, messaging systems, no sql stores, object stores, cloud warehouses, etc
+- "kafka connect" runs in its own processes separate from the kafka brokers. its distributed, scalable and fault tolerant
+- it can also perform lightweight transformations as time passes
+- kafka connect sits between the source and broker / broker and target
+- one advantage - kafka also acts as a "buffer" for the data, thus applying "back pressure" as needed
+- another advantage - once data is in kafka, we can stream it into multiple downstream targets
+- an application can just put elements into the kafka topic, while kafka connect can transfer this data from kafka to the sink. application -> kafka -> kafka connect -> database
+- we can have several old applications putting data into their database at rest. kafka can use cdc and put this data into kafka in near realtime. sometimes, kafka can also act as the permanent system of record. so, new applications can directly read from kafka to service requests. applications -> database -> kafka connect -> kafka -> application
+- we could have written kafka producer and consumer codes ourselves. issue - handling failures, retries, scaling elastically, data formats, etc all would have to be done by us
+- kafka connect components - connector instance, transformers and converters
+  ![](/assets/img/messaging-systems/kafka-connect-components.png)
+- "connector instance" - use "connector plugins" - reusable components that define how to capture data from source into kafka / how to move data from kafka to destination. these are the bridge between the external systems and kafka
+- we can create connector instances by making rest calls to the kafka connect api, or we can also manage connector instances through ksqldb
+- "converters" - also called serdeser etc - used for serialization when putting into kafka / deserialization when pulling out of kafka. it supports formats like json, string, protobuf, etc
+- converters can also work with "schema registries" to enforce contracts, but we would need to use the format that supports schemas. this also helps ensure data hygiene
+- "transformers" - they are optional. they are single message transformers or smts, and used for things like dropping fields including pii, changing types, etc. we can introduce multiple such smts
+- for more complex transformations like aggregations or joins to other topics, use ksqldb / kafka streams are recommended
+- confluent cloud provides "managed connectors" as well i.e. we just provide the source / sink details and confluent cloud takes care of the infra etc for us automatically
+- "self managed kafka connect cluster" - we have to manage the deployment of kafka connect
+- the connector instance is executed by a "task", which runs on a single thread
+- "concurrency" is supported i.e. running multiple tasks for the same connector instance, e.g. ingesting from multiple tables, interacting with multiple partitions of the kafka topic, etc
+- kafka connect runs as multiple "worker" instances, and each of them is essentially a jvm process
+- this jvm process is where the different tasks run
+- kafka connect worker can run in "standalone" or "distributed" mode
+- when using distributed mode, we can easily add or remove workers, and the tasks are distributed automatically
+- the configuration related to connector instances etc are stored inside kafka topics. i think "compacted topics" are used to retain these configurations indefinitely
+- we interact with the rest api for adding connectors, which in turn stores this configuration inside the topics described above
+- for "standalone mode", we use a configuration file and do not interact with rest api etc to configure connectors
+- use case - "locality" - we can simply run kafka connect in the standalone mode alongside the other main application process on a machine, and then it can take care of transferring data to where needed
+- the base image used by confluent - `confluentinc/cp-kafka-connect`. we can add jars on top of this base image, and create a new custom image
+- kafka connect supports several error handling patterns like "fail fast", "dead letter queue", "silently ignore", etc
+- e.g. when using a dead letter queue, the failed messages would be routed to a separate kafka topic. we can then inspect its headers to inspect the cause for the error etc
+  - assume kafka connect is receiving messages in different formats - json and avro
+  - however, our kafka connect is trying to deserialize them using the avro format
+  - the failed messages serialized using json would be sent to the dead letter queue, since the "converter" cannot deserialize them
+  - now, we can add a separate connector configuration to ingest from the dead letter queue using the json deserializer and add this to the sink
