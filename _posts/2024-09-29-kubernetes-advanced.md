@@ -733,7 +733,7 @@ title: Kubernetes Advanced
     containers:
       - name: test-ping
         image: busybox
-        command:  ['sh', '-c', 'wget -qO- {{ include "hooks-demo.backend-name" . }}:80']
+        command:  ['sh', '-c', 'wget -qO- (( include "hooks-demo.backend-name" . )):80']
   ```
 - the output is as follows - "test suite" is the name we gave to the test hook pod
   ![](/assets/img/kubernetes-advanced/test-output.png)
@@ -781,3 +781,462 @@ title: Kubernetes Advanced
 - refer documentation for [sample schema](https://helm.sh/docs/topics/charts/#schema-files)
 - tip - use [this tool](https://onlineyamltools.com/convert-yaml-to-json) to convert yml to json, and then [this tool](https://transform.tools/json-to-json-schema) to convert json to json schema
 - commands like lint, template, install, upgrade will fail if the schema validation fails
+
+## Istio
+
+### Getting Started
+
+- istio injects its own proxy container into every pod like a sidecar
+- the service calls are now routed via this proxy container - the proxy container in the source pod now calls the proxy container in the target pod
+- finally, there are different istio related pods running in the istio-system namespace. specifically, a pod called istiod (istio daemon) running in this namespace implements the core logic of istio. note - apparently, earlier versions of istio had distributed its logic into a lot more pods, but now, a lot of it has been aggregated into this one istiod pod
+- istio calls the layer running the proxy pods as "data plane", while the layer running the pods in the istio-system namespace as "control plane"
+  ![](/assets/img/kubernetes-advanced/istio-architecture.svg)
+- first, we need to add [istio to our cluster](#istio-install-link)
+- istio comes with its own crd (custom resource definition)
+- we need to add this label to all namespaces in which we would like to have istio's functionality - `istio-injection=enabled`. this label helps inject the sidecar proxy to the pods for us automatically, and this way, we do not have to change our existing manifests
+- now, when we run `kubectl get pods`, we see that all our pods have an extra container being spun up called "istio-proxy"
+- istio uses [envoy](https://www.envoyproxy.io/) underneath
+- we work with the crd of istio, and it takes care of configuring and managing envoy for us
+
+### Telemetry - Kiali
+
+- istio comes with three user interfaces - kiali, jaeger and grafana
+- we can see the kiali service as follows - `kubectl get service --namespace istio-system | grep kiali`, and then access it at its nodeport
+- kiali is "a console for the istio service mesh"
+- in kiali, we can choose the type of graph we would like to see. e.g. service graph will show us the interactions between all the kubernetes services
+- a grey line between the services in this service graph indicates that there has been no traffic between the services during the period we have selected, e.g. below, while fleetman-api-gateway does make calls to fleetman-staff-service, there have not been any calls in the last minute. in fact, if there is no traffic between them for a considerable amount of time, that line would be removed entirely from the graph eventually. this means that the graphs are dynamic and change based on traffic
+  ![](/assets/img/kubernetes-advanced/kiali-service-graph.png)
+- there are 3 options at the bottom to lay out the graph in different styles. the graphs stay the same, its just the orientation of the edges and nodes that change (bottom left, notice the three buttons on the left of "legend" in the image above)
+- we can select the namespaces for which we would like to view the graph (top left dropdown in the image above)
+- if we double click on a service, we see the graph related to that service only
+  ![](/assets/img/kubernetes-advanced/kiali-select-service.png)
+- till now, we saw the service graph, which i believe showed us the kubernetes services
+- we can also view the workload graph, which shows us the workloads and the services. kiali calls the pods / deployments as workloads
+  ![](/assets/img/kubernetes-advanced/kiali-workload-graph.png)
+- as we can see, the graph shows both the workloads (circles) and the services (triangles). use the "legend" button on the bottom left to see what shape represents what
+- we can opt in to see only the workloads, and uncheck the services using the display dropdown on the top left
+- unlike service graph, the workload graph can also show us the average response time on the edges, which we can opt in to see by checking this option in the display dropdown
+- be it the service or the workload graph, we can see details about the underlying pod / service, some metrics about inbound / outbound traffic like response times and sizes, etc. to do this, click on the node, and on the right pane, click the three dots at the top and hit "show details"
+  ![](/assets/img/kubernetes-advanced/kiali-workload-details.png)
+- we can select the "traffic animation" option from the display dropdown. it will show us animation around the flow of traffic using moving circles on the edges. the circles will be more in number depending on the number of requests, and the circles would be larger / smaller depending on the size of the payloads
+- we can also change some istio configuration using the kiali user interface. e.g. after going into the details for a service as described earlier, we can click the "actions" dropdown and then for e.g. click on suspend traffic. bts, it will create the virtual services and destination rules for istio automatically for us. we can click on "istio config" from the left side main navigation and see the same
+  ![](/assets/img/kubernetes-advanced/kiali-suspend-traffic.png)
+- while we would love to track everything using iac and yaml, this technique of doing things via the ui can serve as a hotfix during production issues
+- to delete all of this, we can now click on "delete all traffic routing" from the same actions dropdown (look at the dropdown options in the image above)
+- for kiali to be able to identify our different applications effectively, we need to add the label of `app` to our pods. then, kiali can identify our applications using the value we set for this label
+- `version` is another useful label we can add to our pods to make the kiali ui appear better
+- we use both these labels are used to effectively manage [canary releases](#traffic-management)
+- kiali can also do validations for us i.e. spot errors in our istio configuration. e.g. if we make a typo in the service name, we would be able to run kubectl apply successfully, because it is syntactically valid, but kiali will identify and flag this for us, visible in the istio config tab
+
+### Telemetry - Jaeger
+
+- kiali does not give us details about the individual requests, which is why we need a distributed tracing framework like jaeger
+- distributed tracing - shows us the entire path taken by a request across the various components, how much time was spent in each part, etc
+- istio has support for both jaeger and zipkin. note - this statement might predate opentelemetry
+- what the "waterfall model" looks like in jaeger - e.g. service a calls service b, which in turn calls service c
+  - we will see a long bar for service a. it represents the time spent in processing the request by service a and the time taken by service b
+  - we will see a part of the bar for service b. it again represents the tme spent in processing the request by service b and the time taken by service c
+  - and this continues depending on how many nested calls are there
+- the entire graph is called a "trace", while each individual bar is called a "span"
+- note about istio - we might see additional bars in the trace, because of the additional requests between the application container and the sidecar envoy proxy
+- we need to select a service from the jaeger ui dropdown to be able to see the traces. by selecting a service, we essentially say "show me all traces that this service is a part of", and not necessarily "show me all traces that start from this service"
+- the graph on top shows us the time taken by requests end to end. here, we can click on circles that are "outliers" i.e. took a long time and inspect that particular trace
+  ![](/assets/img/kubernetes-advanced/jaeger-ui-graph.png)
+- there is a "lookback" dropdown on the right panel, where we can either select last 1 hour, last 2 hours, etc, or we can select "custom time range" in this dropdown. upon selecting this option, we see two additional inputs pop up, which allows us to set a custom start and end time
+- if we inspect the tags for any span, we see a tag called `guid:x-request-id`. it is a random guid that contains the same value for all spans in a trace
+- for tracing to work end to end properly, our applications need to ensure that this header / trace context is propagated properly. otherwise, our traces would not be stitched properly. the why behind this - 
+  - assume the following scenario - service a -> service b -> service c
+  - now, detailed flow - ... service b proxy -> service b app -> service b proxy -> service c proxy ...
+  - now, when service b calls service c, service b proxy has no way of knowing that the request made by service b app is a part of the request from service a and not just an adhoc request, unless service b app uses the same guid when making this request
+- unlike most other features of istio, getting distributed tracing to work is invasive i.e. it requires changes in our application logic
+
+### Traffic Management
+
+- "canary releases" - deploy the new version of the software alongside the old version. only a small percentage of the requests are directed to the new version, and most of the remaining requests are directed to the old version
+- it is typically used when we have a lot of users, because this way, if there is an issue with the newer version, only a small portion of our users will face the issue
+- synonym - "staged releases"
+- a cheap way of implementing canaries using just kubernetes - 
+  - have two deployments - say service-new and service. service-new points to the newer image, while service to the original, older image
+  - ensure that the pod template for both has the same labels
+  - create one service with the same selector labels as well. this way, this service can direct the traffic to pods of either of the deployments
+  - now, say we run 3 replicas of service, and 1 replica of service-new. this way, we ensure that only 25% of the traffic reaches the newer version of the app
+- now, to configure canaries in istio, first, we need to create two different deployments, just like we saw above
+- however, unlike above, we do not need to adjust the number of replicas to achieve the weighted routing
+- i think typically, we use the `app` label which is set to the same value in both deployments, and `version` label which is set to a different value in both deployments. even the kiali ui understands these two labels
+  ```yml
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: staff-service-risky
+  spec:
+    selector:
+      matchLabels:
+        app: staff-service
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          app: staff-service
+          version: risky
+      spec:
+        containers:
+        - name: staff-service
+          image: richardchesterwood/istio-fleetman-staff-service:6-arm64
+  ---
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: staff-service
+  spec:
+    selector:
+      matchLabels:
+        app: staff-service
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          app: staff-service
+          version: stable
+      spec:
+        containers:
+        - name: staff-service
+          image: richardchesterwood/istio-fleetman-staff-service:6-placeholder-arm64
+  ```
+- the k8s service implements service discovery by selecting all the pods across both deployments, by only specifying the common `app` label
+  ```yml
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: fleetman-staff-service
+  spec:
+    selector:
+      app: staff-service
+    ports:
+      - name: http
+        port: 8080
+    type: ClusterIP
+  ```
+- now, we need to configure "virtual services" and "destination rules"
+- these configs are basically saved in istiod / used to configure the proxy sidecars
+- by default, a k8s service would redirect to the pods using something like round robin, and we cannot control this. but using istio, we can control this behavior now
+- an example configuration of a virtual service - 
+  - host - the address used by client to connect to the service
+  - destination - where to route the traffic to
+  - the subset under destination comes from the destination rules
+  - to avoid misconfigurations, remember to add the namespace of the service to the service name
+ 
+  ```yml
+  apiVersion: networking.istio.io/v1beta1
+  kind: VirtualService
+  metadata:
+    name: fleetman-staff-service
+  spec:
+    hosts:
+      - fleetman-staff-service.default
+    http:
+      - route:
+        - destination:
+            host: fleetman-staff-service.default
+            subset: stable
+          weight: 90
+        - destination:
+            host: fleetman-staff-service.default
+            subset: risky
+          weight: 10
+  ```
+- an example configuration of a destination rule -
+  - host points to the target service, which was destination.host inside virtual service
+  - using destination, we are defining which pods are part of which subset. note how this works just like selectors of k8s services. we are using the label `version` for this, which had different values for the different canaries
+  - we are also giving a name to these subsets that we create, which is used in the virtual service
+
+  ```yml
+  apiVersion: networking.istio.io/v1beta1
+  kind: DestinationRule
+  metadata:
+    name: fleetman-staff-service
+  spec:
+    host: fleetman-staff-service.default
+    subsets:
+      - name: stable
+        labels:
+          version: stable
+      - name: risky
+        labels:
+          version: risky
+  ```
+- remember - it might feel that destination rule and services come in pairs i.e. we need to have both at a time, but that is not the case. e.g. if we do not need to add the `subset` field in virtual service and simply direct to a specific k8s service, we can omit the destination rule config altogether
+- finally, we could have done all this using the ui as well. recall how we used to reach the detail view of a service. from the action dropdown, select "create weighted routing", and now, we can see sliders which we can drag to adjust the weights. this will automatically generate the destination rule and virtual service for us
+  ![](/assets/img/kubernetes-advanced/istio-weighted-routing.png)
+- canary releases are best visualized using the "versioned app graph" type of visualization. recall how we had seen service and workload graphs till now. i think this is possible because of the labels `app` and `version`
+  ![](/assets/img/kubernetes-advanced/traffic-mgmt-versioned-app-graph.png)
+
+### Load Balancing
+
+- one disadvantage of the solution above - the same user might be potentially seeing different versions of the application, if they make multiple calls
+- this might lead to an inconsistent experience
+- so, we might want to introduce stickiness to our solution
+- note - unfortunately, as it stands, in istio, stickiness and weighted routing do not work together, so we need to get rid of weighted routing for stickiness to work
+- we can use one of the three - a cookie, some request header or the source ip, and generate a "consistent hash" for it. this then gets used by the proxy to ensure that the request from the same user reaches the same pod every time
+- since this would not work with weighting, we just need one subset in the destination rule / one destination in the virtual service, and so, we use the `app` label inside the destination rule
+  ```yml
+  kind: VirtualService
+  apiVersion: networking.istio.io/v1alpha3
+  metadata:
+    name: fleetman-staff-service
+  spec:
+    hosts:
+      - fleetman-staff-service.default
+    http:
+      - route:
+          - destination:
+              host: fleetman-staff-service.default
+              subset: all-staff-service-pods
+  ---
+  kind: DestinationRule
+  apiVersion: networking.istio.io/v1alpha3
+  metadata:
+    name: fleetman-staff-service
+  spec:
+    host: fleetman-staff-service.default
+    trafficPolicy:
+      loadBalancer:
+        consistentHash:
+          httpHeaderName: "x-myval"
+    subsets:
+      - name: all-staff-service-pods
+        labels:
+          app: staff-service
+  ```
+
+### Gateways
+
+- till now, our [canary release implementation using istio](#traffic-management) worked because basically, it was an intra cluster communication, which meant when service a called service b, it went via the proxy of service a, and thus istio specific routing logic could be configured and injected
+- this is not true if for e.g. we were accessing a pod from outside the cluster, say using an exposed node port. the envoy proxy is not getting a chance to intercept our traffic in this case
+- so, we need "gateways", that do exactly this - configure the envoy proxy at the edge
+- there is a deployment called `istio-ingressgateway` and a node port service called `istio-ingressgateway` as well running inside the istio-system namespace
+- we can see that the node port service exposes port 31380 of the worker nodes
+- an example configuration of a gateway object -
+  - port - we need to configure this istio ingress gateway pod now to listen on port 80, since the default is to deny all traffic
+  - selector - this gateway configuration gets applied to the right istio ingress gateway pods. the istio ingress gateway pods have this label as well
+  - hosts - address used by the client, like in virtual service. it would ideally be configured for specific domains in production, but for now, we are setting it to `*`. this way, the ingress gateway pod would only listen on the port if the traffic is coming using the specified domain
+
+  ```yml
+  apiVersion: networking.istio.io/v1
+  kind: Gateway
+  metadata:
+    name: ingress-gateway
+  spec:
+    selector:
+      istio: ingressgateway
+    servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+  ```
+- an example configuration of a virtual service - 
+  - gateway - the virtual routing applies to all the gateways specified in this list
+  - host - the address used by client to connect to the service. since we used `*` in the gateway object, we use `*` here as well. recall it was just the service name during [intra cluster communication](#traffic-management)
+
+  ```yml
+  kind: VirtualService
+  apiVersion: networking.istio.io/v1alpha3
+  metadata:
+    name: fleetman-webapp
+  spec:
+    hosts:
+      - "*"
+    gateways:
+      - ingress-gateway
+    http:
+      - route:
+          - destination:
+              host: fleetman-webapp.default
+              subset: original
+            weight: 90
+          - destination:
+              host: fleetman-webapp.default
+              subset: experimental
+            weight: 10
+  ```
+- we only talk about configuring the gateway and virtual service in this section, because the destination rule configuration stays the same
+
+### Prefix and Domain Based Routing
+
+- till now, we saw how we can use canaries for calls from outside the cluster using ingress gateway. but, we can also do prefix based routing, e.g. redirect to the normal app for the root url, but redirect to the experimental version of the app when the path is /experimental or /canary. notice how we can skip the weight argument to when there is only one element in the route array
+  ```yml
+  kind: VirtualService
+  apiVersion: networking.istio.io/v1alpha3
+  metadata:
+    name: fleetman-webapp
+  spec:
+    hosts:
+      - "*"
+    gateways:
+      - ingress-gateway
+    http:
+      - match:
+          - uri: { prefix: /experimental }
+          - uri: { prefix: /canary }
+        route:
+          - destination:
+              host: fleetman-webapp.default.svc.cluster.local
+              subset: experimental
+      - match:
+          - uri: { prefix: / }
+        route:
+          - destination:
+              host: fleetman-webapp.default.svc.cluster.local
+              subset: original
+  ```
+- apart from prefix, we can also use `exact` or `regex`, enable case insensitive, match based on scheme (http / https) or request method, query parameters, etc
+- issue with prefix routing - the application has to support it. the application might break if it is sensitive to these paths. solution - use subdomain routing instead
+- for testing this locally, add the following entry to /etc/hosts - 
+  ```
+  127.0.0.1	fleetman.com
+  127.0.0.1	experimental.fleetman.com
+  ```
+- first, the gateway needs to allow listening for both these domains. notice how we configure the hosts section of our gateway object to allow for all subdomains of fleetman.com and fleetman.com by itself - 
+  ```yml
+  apiVersion: networking.istio.io/v1alpha3
+  kind: Gateway
+  metadata:
+    name: ingress-gateway-configuration
+  spec:
+    selector:
+      istio: ingressgateway
+    servers:
+      - port:
+          number: 80
+          name: http
+          protocol: HTTP
+        hosts:
+          - "*.fleetman.com"
+          - "fleetman.com"
+  ```
+- now, we need a different virtual service for every domain (notice the hosts key of the two virtual services below). each of them can handle routing in their own way
+
+  ```yml
+  kind: VirtualService
+  apiVersion: networking.istio.io/v1alpha3
+  metadata:
+    name: fleetman-webapp
+    namespace: default
+  spec:
+    hosts:
+      - "fleetman.com"
+    gateways:
+      - ingress-gateway-configuration
+    http:
+      - route:
+        - destination:
+            host: fleetman-webapp
+            subset: original
+  ---
+  kind: VirtualService
+  apiVersion: networking.istio.io/v1alpha3
+  metadata:
+    name: fleetman-webapp-experiment
+    namespace: default
+  spec:
+    hosts:
+      - "experimental.fleetman.com"
+    gateways:
+      - ingress-gateway-configuration
+    http:
+        - route:
+          - destination:
+              host: fleetman-webapp
+              subset: experimental
+  ```
+
+### Dark Releases
+
+- we already saw matching based on [prefix and domain based routing](#prefix-and-domain-based-routing). now, we will see routing based on headers - 
+  ```yml
+  kind: VirtualService
+  apiVersion: networking.istio.io/v1alpha3
+  metadata:
+    name: fleetman-webapp
+    namespace: default
+  spec:
+    hosts:
+      - "*"
+    gateways:
+      - ingress-gateway-configuration
+    http:
+      - match:
+        - headers:
+            my-header:
+              exact: canary
+        route:
+        - destination:
+            host: fleetman-webapp
+            subset: experimental
+      - route:
+        - destination:
+            host: fleetman-webapp
+            subset: original
+  ```
+- the second element in our routes section does not have any `match` element, and hence it behaves like a catch all entry
+- using this, we can perform "dark releases". we can have parts of our services running two versions - new, untested versions and the older, stable versions
+- i am using the chrome extension [mod header](https://chromewebstore.google.com/detail/modheader-modify-http-hea/idgpnmonknjnojddfkpgkljpfnnfcklj) to add header to outgoing requests easily. i added two profiles here - one that adds the canary header and one that does not
+- this way, only users (e.g. developers of our company) can now see and interact with the new version, and our customers continue being served by the older stable version. and all of this is happening inside the production cluster directly, thus helping us save on resources
+- remember about header propagation - we might want to be several services deep when using istio, e.g. service a canary -> service b -> service c -> service d canary. this means the canary header(s) need to propagated all the way, so that we can easily use canary version of some services
+
+### Fault Injection
+
+- we want to design our systems such that even if a service goes down, our system continues to work, albeit in a degraded way
+- option 1, naive - create a version of deployment with random failures
+- option 2 - use istio
+- using istio, we can do things like return random failures, return responses after some delay, etc. we can also set the percentage of requests for which we would like these faults kick in
+- and remember, thanks to istio, we can set these faults only for a subset of pods. e.g. refer the yml below, the risky / canary version is the only one where we see a degraded performance
+  ```yml
+  kind: VirtualService
+  apiVersion: networking.istio.io/v1alpha3
+  metadata:
+    name: fleetman-staff-service
+    namespace: default
+  spec:
+    hosts:
+      - fleetman-staff-service
+    http:
+      - match:
+          - headers:
+              x-my-header:
+                exact: canary
+        fault:
+          abort:
+            percentage:
+              value: 100.0
+            httpStatus: 418
+        route:
+          - destination:
+              host: fleetman-staff-service
+              subset: risky
+      - route:
+          - destination:
+              host: fleetman-staff-service
+              subset: safe
+  ```
+- we might want to look tools that do chaos engineering for more advanced capabilities
+
+### Circuit Breaker
+
+- read about circuit breakers [here](/posts/high-level-design/#circuit-breaker-pattern)
+- a popular library used for this is hystrix. issues with libraries like hystrix - we need to bake as a part of the code. thus, all languages would have to support this as well
+- the istio proxy sidecars have circuit breakers built in, and thus we do not have to touch the microservice code
+- circuit breakers in istio work at a pod level, not service level
+- assume a particular pod has returned 3 consecutive 503s. the proxy will now stop routing traffic to this pod. it will however continue sending traffic to the other pods of this deployment. after some time, it will again start sending requests to the pod that was failing
+- understand that the pod still stays in the cluster, it is not evicted. it is given some time to settle down, and requests are directed to it again
+- my understanding - this is an important understanding about istio - by default, k8s services are not intelligent, and do plain round robin like balancing between the pods, but istio can do intelligent routing on top of this, which gives us all these features around dark releases, canary releases, and now circuit breaking
+- istio calls circuit breaking as "outlier detection"
+- to enable circuit breaking, just supply `outlierDetection`, and the default values would kick in
+- example configuration - we apply the configuration via a destination rule only, and we do not need a virtual service
+  - `consecutive5xxErrors` or `consecutiveGatewayErrors` - both are the same, just that the gateway version is switched on only for 502, 503 and 504
+  - `interval` - if there are x or more errors in the interval supplied here, the circuit breaker logic kicks in. x here refers to the number specified above
+  - `baseEjectionTime` - if the pod is evicted the first time, it will stay evicted for the duration specified here. the next time, it would be ejected for a duration of 2 * this duration and so on. so, its almost like we can configure exponential backoff strategy using this
+  - `maxEjectionPercent` - by default, at least one pod would be ejected due to circuit breaking logic, but at max, this percentage of pods would be evicted. defaults to 10%. note to self - maybe 100% is a better default? otherwise, we might be back to the cascading failures problem
+- understand how while we apply the configuration to a whole k8s service using the `host` key, it actually monitors on a pod by pod basis

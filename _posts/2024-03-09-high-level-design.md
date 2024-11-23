@@ -874,6 +874,9 @@ title: High Level Design
 
 ### Circuit Breaker Pattern
 
+- "cascading failures" - e.g. in a microservice architecture, a failure in one microservice, say due to a new bug, causes a failure in the entire chain. service a -> service b -> service c -> service d, and slow responses from service d causes all the other services to slow down
+- "circuit breaker" - we now relay our network calls via this circuit breaker instead. this way, the circuit breaker can monitor the success rate of the calls it is making. if the circuit breaker notices that too many of the calls that it is making are failing, it would stop relaying the request and immediately return a 503
+- assume a service was struggling with too many requests, and now because of slowness, even more requests are queuing up, thus causing all its replicas to go down due to overload. when we use circuit breakers, we do not forward requests to this faulty service, thus giving it a chance to come back up
 - we were able to recover from temporary and recoverable issues using the [retry pattern](#retry-pattern)
 - retry pattern is optimistic, while circuit breaker is pessimistic
 - if the errors go above a certain threshold, the circuit breaker does not even allow the requests to go through

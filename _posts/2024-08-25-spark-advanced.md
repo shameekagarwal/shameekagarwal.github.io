@@ -240,3 +240,125 @@ title: Spark Advanced
   - case 1 - we use checkpoint directory. our spark streaming job continues from where it had left off
   - case 2 - we had an issue in our previous code. we merge the fix and deploy our job again. we rely on **starting timestamp** and an empty checkpoint directory this time around to be able to reprocess events since the faulty deployment was made
 - so, we need to implement **idempotence** in our sink
+
+## Spark Cluster on Kubernetes
+
+- install spark - `helm install spark bitnami/spark`
+- modify the number of workers - `helm upgrade spark bitnami/spark --set worker.replicaCount=4`
+- access the ui - `kubectl port-forward --namespace default svc/spark-master-svc 30080:80`
+- submitting the example application - 
+  ```
+  spark-submit \
+    --master spark://spark-master-svc:7077 \
+    --class org.apache.spark.examples.SparkPi \
+    /opt/bitnami/spark/examples/jars/spark-examples_2.12-3.5.3.jar 5
+  ```
+- my understanding - this approach is spark standalone cluster, i.e. pods for workers and master are there. it is not the same, or maybe as preferred as the [kubernetes operator](#kubernetes-operator) approach
+
+## Spark Kubernetes Operator
+
+- we can use spark-submit command directly, which uses the spark native k8s scheduler
+- however, a special kubernetes operator for spark is there
+- google introduced the "spark operator", which was later migrated to kubeflow
+- so, we write spark applications in the form of yaml using crd (custom resource definition)
+- we do not need to use spark submit now - it runs bts when we create the `SparkApplication` resource using the crd
+- allows exposing application, driver and executor metrics to prometheus
+- restart, retries, backoff etc supported
+- note - apparently, `SparkScheduledApplication` is supported as well, wherein we can specify a cron etc. however, i would probably rather use airflow
+
+### Architecture
+
+- the operator has four parts - controller, submission runner, pod monitor, mutating admission webhook
+- "controller" - 
+  - like api server of k8s i.e. both clients and the different internal components interact with it
+  - receives the creation, deletion etc events for "spark application"
+  - sends spark applications to "submission runner" with the arguments
+  - receives health of driver and executor pods from "pod monitor" and accordingly updates the status of the "spark application"
+- "submission runner" - talks to k8s to spin up the driver pod, and then executor pods are spun up by the driver pod
+- "pod monitor" - watch status of the driver and executor pods, and send updates to the controller
+- "mutating admission webhook" - use annotations to -
+  - mount volume(s) on the driver / executor pods
+  - control pod affinity etc - e.g. schedule driver on on demand instances, executor on scheduled instances
+- we can use "sparkctl" instead of kubectl for more functionality as well
+
+### Getting Started
+
+- adding the helm repository and installing the chart -
+  ```
+  helm repo add spark-operator https://kubeflow.github.io/spark-operator
+
+  helm repo update
+
+  helm install spark-operator spark-operator/spark-operator \
+    --namespace=spark-operator \
+    --create-namespace
+  ```
+- includes things like setting up service account called `spark-operator-spark` with rbac so that driver can spawn executors etc
+- now we can run `kubectl get sparkapplications`
+- use the value `sparkJobNamespaces` to decide which namespace the spark jobs run inside. based on this value, resources like the service account mentioned above would be created
+- we can run the operator in high availability mode i.e. multiple replicas of the operator. there is "leader election" in play in this case, and a lock resource needs is maintained in this case
+- we can run multiple instances of the operator itself as well. we just need to ensure that they watch different namespaces, specified using `sparkJobNamespaces`
+  - my understanding - this is not the same as multiple replicas, this is entirely different instances
+
+### Spark Application Configurations
+
+- a yaml definition - create using kubectl / sparkctl
+- type - scala, python, etc
+- deployment mode - cluster or client. we should be using cluster only, i think client is not supported yet
+- the same image gets used by the driver and executor pods, since we do not have to code them separately as developers
+- a very basic example - 
+  ```yml
+  apiVersion: sparkoperator.k8s.io/v1beta2
+  kind: SparkApplication
+  metadata:
+    name: spark-pi
+    namespace: default
+  spec:
+    type: Scala
+    mode: cluster
+    image: spark:3.5.1
+    mainClass: org.apache.spark.examples.SparkPi
+    mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.1.jar
+  ```
+- we can specify a separate init container image, otherwise the same image gets used for init container as well
+- spark-submit supports `--jars` and `--files` command for external dependencies and data files. we can use `spec.deps.jars` and `spec.deps.files` for the same here
+- we can do things like download from hdfs, s3, specify maven coordinates, etc for these jars
+  ```yml
+  spec:
+    deps:
+      jars:
+        - local:///opt/spark-jars/gcs-connector.jar
+      files:
+        - gs://spark-data/data-file-1.txt
+        - gs://spark-data/data-file-2.txt
+  ```
+- we can also specify `.spec.deps.pyFiles`, which translates to `--py-files` of spark-submit
+- we can set either specify individual spark configuration under `spec.sparkConf` in a key value format, or specify `spec.sparkConfigMap`, which mounts the config map storing spark-defaults.conf, spark-env.sh, log4j.properties at /etc/spark/conf, and also sets `SPARK_CONF_DIR` to the same
+  - note, my understanding - prefer using `spec.executor.javaOptions` and `spec.driver.javaOptions` in the crd directly over specifying `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions` here
+- the same thing applies to `spec.hadoopConf` and `spec.hadoopConfigMap`
+- use `spec.driver` - 
+  - resources - memory and cpu
+  - labels, annotations
+  - environment variables - use `env` or `envFrom` for config maps / secrets
+  - to set a custom pod name
+  - a service account with the right permissions to generate executors
+  - a driver specific image. it overrides the one specified inside `spec.image`
+  - mount secrets. additionally, we can specify a type, e.g. if we specify type as `GCPServiceAccount`, it would set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` for us automatically
+  - mount config maps
+  - set the affinity and toleration. my understanding of what this translates to - allows us to think about things like cost savings, by scheduling drivers on on demand instances and executors on spot instances
+  - set volumes for scratch space. my understanding of what this translates to - during shuffle etc, spark can store to disk. the pod storage might not be enough for this, and so we need volumes. to validate - additionally, maybe if an executor has to be restarted, the new executor can reuse this data?
+- `spec.executor` is be pretty similar. but additionally, it allows specifying number of executor instances via `spec.executor.instances`, which defaults to 1
+- optionally, dynamic allocation is supported as well, which can be configured using `dynamicAllocation`
+- status of "spark application" = 
+  - "failed" if status of driver pod has status failed
+  - "completed" if status of driver pod has status completed
+  - "failed_submission" if somewhere around "submission runner" there is a failure
+- restart policies - never, always or on_failure. also notice how we can configure backoff etc for the restarts
+  ```yml
+  restartPolicy:
+     type: OnFailure
+     onFailureRetries: 3
+     onFailureRetryInterval: 10
+     onSubmissionFailureRetries: 5
+     onSubmissionFailureRetryInterval: 20
+  ```
