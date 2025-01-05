@@ -791,7 +791,7 @@ title: Kubernetes Advanced
 - finally, there are different istio related pods running in the istio-system namespace. specifically, a pod called istiod (istio daemon) running in this namespace implements the core logic of istio. note - apparently, earlier versions of istio had distributed its logic into a lot more pods, but now, a lot of it has been aggregated into this one istiod pod
 - istio calls the layer running the proxy pods as "data plane", while the layer running the pods in the istio-system namespace as "control plane"
   ![](/assets/img/kubernetes-advanced/istio-architecture.svg)
-- first, we need to add [istio to our cluster](#istio-install-link)
+- first, we need to add istio to our cluster
 - istio comes with its own crd (custom resource definition)
 - we need to add this label to all namespaces in which we would like to have istio's functionality - `istio-injection=enabled`. this label helps inject the sidecar proxy to the pods for us automatically, and this way, we do not have to change our existing manifests
 - now, when we run `kubectl get pods`, we see that all our pods have an extra container being spun up called "istio-proxy"

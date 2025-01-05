@@ -309,7 +309,7 @@ if __name__ == '__main__':
 - we could have written kafka producer and consumer codes ourselves. issue - handling failures, retries, scaling elastically, data formats, etc all would have to be done by us
 - miscellaneous advantages - 
   - kafka also acts as a "buffer" for the data, thus applying "back pressure" as needed
-  - once data is in kafka, we can stream it into multiple downstream targets. this is possible because kafka stores this data per entity in a different kafka topic. ss
+  - once data is in kafka, we can stream it into multiple downstream targets. this is possible because kafka stores this data per entity in a different kafka topic
 - some architectures - 
   - an application can just put elements into the kafka topic, while kafka connect can transfer this data from kafka to the sink. application -> kafka -> kafka connect -> database
   - we can have several old applications putting data into their database at rest. kafka can use cdc and put this data into kafka in near realtime. sometimes, kafka can also act as the permanent system of record. so, new applications can directly read from kafka to service requests. applications -> database -> kafka connect -> kafka -> application

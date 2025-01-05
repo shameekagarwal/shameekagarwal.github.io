@@ -678,9 +678,9 @@ title: Snowflake
 
 ## Cost Governance Framework
 
-- **visibility** - understand, attribute and monitor the spend. e.g. dashboards, tagging, resource monitors. TODO - links
-- **control** - limit and control the spend. e.g. TODO - links
-- **optimization** - optimize the spend. e.g. TODO - links
+- **visibility** - understand, attribute and monitor the spend. e.g. [dashboards](#dashboards), [tagging](#query-tagging), [resource monitors](#resource-monitors)
+- **control** - [limit and control](#control-strategies) the spend
+- **optimization** - optimize the spend
 
 ## Dashboards
 
@@ -741,7 +741,7 @@ title: Snowflake
   - virtual warehouses managed by us
   - virtual warehouses managed y cloud services
 - we can also monitor credits used by serverless compute. recall how it is broken down by services
-- so, we use `metering_history` for this, and filter out the rows for virtual warehouses
+- so, we use `metering_history` for this, and filter out the rows for virtual warehouses by using `service_type != 'WAREHOUSE_METERING'` (we already created a chart for the warehouse_metering table above)
   ```sql
   select
       date_trunc('month', start_time),
