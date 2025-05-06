@@ -164,6 +164,10 @@ title: Spark Advanced
   - replayable source - we should be able to re-read the data for the failed microbatch from the source. my understanding - e.g. kafka has the ability - read from specific offsets, as long as we are within the configured retentions. however, socket (the netcat utility we saw for word count) does not have this ability
   - our sink should be idempotent, so that we can upsert the recomputed data
 - finally, in case we make fixes, the nature of our fixes would determine whether or not the same checkpoint data can be used - e.g. if we add an additional filtering clause, the same checkpoint can be used. however, if we change our group by clause, spark would throw an exception if we try to resume our application
+- cleanup of old checkpoints can be managed by spark using `spark.sql.streaming.minBatchesToRetain`. it defaults to 100
+- the management of checkpoints can be made asynchronous
+- the state management can be implemented using [rocksdb](https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#rocksdb-state-store-implementation) instead of the default jvm implementation
+- be sure before implementing either of the optimizations above
 
 ## Integration With Kafka
 
@@ -297,7 +301,7 @@ title: Spark Advanced
 - so, we have two kinds of transformations -
   - "stateless transformations" - like flat map, map, filter, etc - which do not require state
   - "stateful transformations" - like joins, aggregations, windows - which require state
-- note to self - mostly, i feel like they are one to one with narrow vs wide transformations. but while narrow and wide transformations are batch processing concepts, while stateful and stateless transformations are stream processing concepts
+- note - i feel like they are one to one with narrow vs wide transformations. while narrow / wide transformations are batch processing concepts, stateful / stateless transformations are stream processing concepts
 - implications - if we only have "stateless transformations", the "complete" output mode would not be supported, only append or update output modes would be supported
 - this is because in stateless transformations, for each input record, we get one or more output records. and storing all of this inside the state is not efficient
 - we also need to be careful with our state - storing too much state will result in out of memory exceptions, because state is stored inside the memory of executors after all, even if it is committed to the checkpoint location regularly
@@ -487,9 +491,9 @@ title: Spark Advanced
 - "submission runner" - talks to k8s to spin up the driver pod
 - after this, the executor pods are spun up by the driver pod
 - "pod monitor" - watch status of the driver and executor pods, and send updates to the controller
-- "mutating admission webhook" - use annotations to -
+- "mutating admission webhook" - the "controller" will add annotations, and the "mutating admission webhook" at the back of this will for e.g. perform actions like -
   - mount volume(s) on the driver / executor pods
-  - control pod affinity etc - e.g. schedule driver on on demand instances, executor on scheduled instances
+  - control pod affinity etc - e.g. schedule driver on on demand instances, executors on spot instances
 - we can use "sparkctl" instead of kubectl for more functionality as well
 
 ### Getting Started

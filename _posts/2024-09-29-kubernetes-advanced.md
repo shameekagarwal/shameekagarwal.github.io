@@ -825,7 +825,7 @@ title: Kubernetes Advanced
 - to delete all of this, we can now click on "delete all traffic routing" from the same actions dropdown (look at the dropdown options in the image above)
 - for kiali to be able to identify our different applications effectively, we need to add the label of `app` to our pods. then, kiali can identify our applications using the value we set for this label
 - `version` is another useful label we can add to our pods to make the kiali ui appear better
-- we use both these labels are used to effectively manage [canary releases](#traffic-management)
+- we use both these labels to manage [canary releases](#traffic-management) effectively
 - kiali can also do validations for us i.e. spot errors in our istio configuration. e.g. if we make a typo in the service name, we would be able to run kubectl apply successfully, because it is syntactically valid, but kiali will identify and flag this for us, visible in the istio config tab
 
 ### Telemetry - Jaeger
@@ -835,7 +835,7 @@ title: Kubernetes Advanced
 - istio has support for both jaeger and zipkin. note - this statement might predate opentelemetry
 - what the "waterfall model" looks like in jaeger - e.g. service a calls service b, which in turn calls service c
   - we will see a long bar for service a. it represents the time spent in processing the request by service a and the time taken by service b
-  - we will see a part of the bar for service b. it again represents the tme spent in processing the request by service b and the time taken by service c
+  - we will see a part of the bar for service b. it again represents the time spent in processing the request by service b and the time taken by service c
   - and this continues depending on how many nested calls are there
 - the entire graph is called a "trace", while each individual bar is called a "span"
 - note about istio - we might see additional bars in the trace, because of the additional requests between the application container and the sidecar envoy proxy
@@ -964,7 +964,7 @@ title: Kubernetes Advanced
         labels:
           version: risky
   ```
-- remember - it might feel that destination rule and services come in pairs i.e. we need to have both at a time, but that is not the case. e.g. if we do not need to add the `subset` field in virtual service and simply direct to a specific k8s service, we can omit the destination rule config altogether
+- remember - it might feel that destination rule and virtual services come in pairs i.e. we need to have both at a time, but that is not the case. e.g. if we do not need to add the `subset` field in virtual service and simply direct to a specific k8s service, we can omit the destination rule config altogether
 - finally, we could have done all this using the ui as well. recall how we used to reach the detail view of a service. from the action dropdown, select "create weighted routing", and now, we can see sliders which we can drag to adjust the weights. this will automatically generate the destination rule and virtual service for us
   ![](/assets/img/kubernetes-advanced/istio-weighted-routing.png)
 - canary releases are best visualized using the "versioned app graph" type of visualization. recall how we had seen service and workload graphs till now. i think this is possible because of the labels `app` and `version`
@@ -1065,7 +1065,7 @@ title: Kubernetes Advanced
 
 ### Prefix and Domain Based Routing
 
-- till now, we saw how we can use canaries for calls from outside the cluster using ingress gateway. but, we can also do prefix based routing, e.g. redirect to the normal app for the root url, but redirect to the experimental version of the app when the path is /experimental or /canary. notice how we can skip the weight argument to when there is only one element in the route array
+- till now, we saw how we can use canaries for calls from outside the cluster using ingress gateway. but, we can also do prefix based routing, e.g. redirect to the normal app for the root url, but redirect to the experimental version of the app when the path is /experimental or /canary. notice how we can skip the weight argument too when there is only one element in the route array
   ```yml
   kind: VirtualService
   apiVersion: networking.istio.io/v1alpha3
