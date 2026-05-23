@@ -101,12 +101,12 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 - they then again write to the video metadata storage to update with thumbnail etc data
 - "cdn" - used for popular content
 - we use a "distributed search" system for searching through videos easily - mention working of "inverted index", etc - how he categories, description, etc of the video can be tokenized etc
-- then, mention how for ranking the videos, factors like view count, recency of upload, etc would be taken into account
+- then, mention how for ranking the videos, view count, upload recency, etc would be taken into account
 
 ### Distinctive Features
 
 - "consistency" - we prefer availability over consistency (cap theorem)
-- "caching" - we can use lru strategy for long tail content
+- "caching" - we can use lru strategy
 - "storage" - we can use mysql for users, as users need not scale as much, and we get benefits of consistency, indexes, etc. however for thumbnails, etc, we would need a lot of scale, so we need solutions like bigtable, cassandra, etc
 - "duplicate videos" -
   - duplication can happen due to several reasons, users might try to spam the system, copy content, etc
@@ -144,7 +144,7 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 - issue - we have billions of users and millions of videos, and we would want to run all the user-video combinations against this ml model
 - so, we need a much more efficient solution
 - so, we introduce a step called "candidate generation", where we filter the millions of videos down to a few hundred, before ranking and forwarding them to the user
-- we can have multiple logic for candidate generation - all these candidate generators individually output some videos
+- we can have multiple candidate generators - all of them individually output some videos
   - candidate generator 1 - find videos by creators the user is subscribed to
   - candidate generator 2 - find recent videos that are very popular / trending videos
   - candidate generator 3 - find videos matching users interests - videos user liked, viewed recently, etc
@@ -153,7 +153,8 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 - for candidate generator 3, we use the following approach -
   - we ingest all the video metadata into a "vector store" (open source example faiss, cloud example pinecone)
   - how it works - textual data like categories etc are converted into a "vector" using "embeddings"
-  - then, when user requests for their timeline, we first generate a vector for e.g. for the last video that the user watched. then, we query the vector store to find vectors close to it in the vector space, and then return these results
+  - when user requests for their timeline, we first generate a vector for the last video that the user watched
+  - then, we query the vector store to find vectors close to it in the vector space, and then return these results
 
 ### Upload / Download Flow Deep Dive
 
@@ -212,7 +213,7 @@ _this is a starting point, we can add more details, e.g. different qualities of 
   - disadvantage - slowness due to network calls. it compounded with scale
 - "ultralisk architecture" - 
   - "ultralisk machines" ran both masters and workers
-  - it used local socket / tcp for communication, and so concepts of congestion control when using tcp etc come as well
+  - it used local socket / tcp for communication, and so features of tcp like congestion control could be leveraged during the communication between master / worker processes as well
   - since all communication happened via localhost, there was a significant reduction in latency
 
 ![](/assets/img/high-level-design/quora-ultralisk-vs-webpara.png)
@@ -240,7 +241,7 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 - "distributed search" - helps convert place names to latitude and longitude. an index is created on the place names. e.g. users can select their destination by typing in the typeahead search box. this technique of converting human readable names to exact latitude and longitude is called "geocoding"
 - "graph processing service" - runs the shortest path algorithm on the graph
 - "area search service" -
-  - if we know the latitude and longitude of the source and destination, we can calculate the distance using dijkstra
+  - if we know the latitude and longitude of the source and destination, we can use dijkstra
   - however, running it on a graph with billions of nodes, at millions of requests per second is not efficient
   - so, this service after identifying the source and destination, finds the areas close / between / around the source and destination, with the help of the distributed search service
   - now it can run the shortest path algorithm using the graph processing service
@@ -268,7 +269,7 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 
 - user initiates a request
 - "location finder" finds the user's current location using gps / wifi / cellular data
-- user searches for the destination using a typeahead, and the "distributed search" converts it to an exact location
+- user searches for the destination using a typeahead, and "geocoding" helps convert it to an exact location
 - "route finder" finds the path from source to destination
 - the route finder service requests the "area search service" to find the area between the source and destination
 - then, the route finder service requests the "graph processing service" to run the shortest path algorithm on the graph database for this area
@@ -276,13 +277,12 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 
 ### Algorithmic Considerations 
 
-- "contraction hierarchies" - we perform two optimizations to reduce the complexity when performing dijkstra's algorithm
+- "contraction hierarchies" - it helps perform two optimizations when performing dijkstra's algorithm
 - optimization 1 - if an edge connecting a to b adds no value, as we can be certain that people never use it, we simply remove it from the graph
 - optimization 2 - if we know that a -> e has only one path i.e. a -> b -> c -> d -> e, we can simply add the edge a -> e to avoid computation
 - we need to have different "levels" of our map / graphs
-- use case 1 - as we "zoom in", we see more detailed images on google maps with more smaller roads and more precise location details, but as we zoom out, we only see images with the important highways and district level names
-- use case 2 - it helps us run our algorithms optimally. for going from a to b, if the two places are far apart, we can consider going from a to main roads, then travel along the main roads, and then finally main roads to b. the main road(s) can be part of a larger more zoomed out graph, on which a different dijkstra's algorithm can be run, while the smaller back roads can be a part of a finer graph, which we only need to consider at the start or end of our journey
-- remember that the weights etc of all these edges would constantly keep changing as listed in requirements, [refer this](#edge-weights)
+- example 1 - as we "zoom in", we see more detailed images on google maps with smaller roads and more precise location details. as we zoom out, we only see images with the important highways and district level names
+- example 2 - it helps us run our algorithms optimally. for going from a to b, if the two places are far apart, we can consider going from a to main roads, then travel along the main roads, and then finally main roads to b. the main road(s) can be part of a larger more zoomed out graph, on which a different dijkstra's algorithm can be run, while the smaller back roads can be a part of a finer graph, which we only need to consider at the start or end of our journey
 - these ideas of levels can be linked to using [geo hash described in uber](#uber). e.g. 110 would mean 3 levels, 1110 would mean four levels and so on
 
 #### Segments
@@ -292,9 +292,9 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 - each segment can be defined using four sets of latitude and longitude
   ![](/assets/img/high-level-design/google-maps-segment.png)
 - we can treat the "roads" within a segment as edges, and "intersections" as nodes
-- now, we can precompute the shortest paths between the different nodes in a segment and store them in the graph database
+- we precompute the shortest paths within a segment and store them in the graph database
   ![](/assets/img/high-level-design/google-maps-segment-shortest-paths.png)
-- typically, users would not start at a node, but somewhere on the edge. we would handle this case on the fly as follows - 
+- typically, users would not start at a node, but somewhere on the edge. we can handle it on the fly as follows -
   ![](/assets/img/high-level-design/google-maps-segment-shortest-path-edge-case.png)
 - the nodes at the edges of segments are called as "exit points". they help connect adjacent segments. for instance, look at how the nodes marked in blue below help connect the segment to its adjacent ones
   ![](/assets/img/high-level-design/google-maps-segment-adjacent.png)
@@ -323,7 +323,7 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 
 - persistent connections between client and server using websockets for dual communication
 - here, describe other solutions like long polling, server sent events, etc and pros and cons of each
-- e.g. if there is an accident on the route, the server can immediately send a notification or update the route of the client
+- this way, if for instance there is an accident on the route, the server can immediately send a notification or update the route of the client in realtime
 
 ## Yelp
 
@@ -335,7 +335,7 @@ _this is a starting point, we can add more details, e.g. different qualities of 
   - type of place (e.g. cafe) to list the nearby cafes
   - etc
 - extension of search - search for all business within a radius of the user
-- users can view a business details like reviews, location, etc
+- users can view the details of a business like reviews, location, etc
 - performance / latency - search results should be returned within 500ms
 - strong consistency < high availability - we need not see the new reviews immediately, we can see it eventually
 - scalability - scale easily for the growing number of businesses and users
@@ -355,7 +355,7 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 ### High Level Design
 
 - "sql databases" are used for storing user data, places, reviews, photo urls, etc
-- here, talk about how to store data to avoid cross shard queries, use zookeeper to store mapping of partition to shard etc
+- mention storing of data to avoid cross shard queries, zookeeper to store mapping of partition to shard etc
 - our queries would join the business data, reviews, etc, all of which should ideally be present on the same shard
 - updating the average rating - when we add a review, we do it as part of a transaction
   - begin
@@ -372,8 +372,9 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 ### Deep Dive into Geo Spatial Data
 
 - this is also called a "proximity service / search" - find close by restaurants, gas stations, etc
-- solution 1 (naive) - the places table would have the place id, and a column for storing the latitude and longitude each
-- assume we want to query the places nearby to a specific location. say the location is m, n. we look for all places within a radius r, using m-r,n-r to m+r,n+r. this means we index the places table on the latitude and longitude columns
+- solution 1 (naive) - the places table would have the place id, and a column for the latitude and longitude
+- assume we want to query the places nearby to a specific location. say the location is m, n. we look for all places within a radius r, using m-r,n-r to m+r,n+r
+- this means we index the places table on the latitude and longitude columns
   ```
   select *
   from business
@@ -394,27 +395,25 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 
 ![](/assets/img/high-level-design/yelp-multi-segment-naive.png)
 
-- issue - not all segments have the same number of places. some segments might be very dense, while others sparse
-- so, solution 2 - we use "quad trees"
+- issue - not all segments have the same no. of places. some segments might be dense, while others sparse
+- so, solution 3 - we use "quad trees"
 - quad trees have four children, and each leaf node represents some interesting spatial information (in our case, it is a segment)
 - we split a segment into four smaller segments, if the number of places in that segment exceeds a certain threshold, say 500. so, each leaf node in our case would be a segment with a list of places
 - we also connect the child nodes using doubly linked lists as it allows us to traverse through neighboring segments easily
 - we start from the root node and keep traversing down the tree until we find the desired segment. then using the doubly linked list pointers, we traverse the neighboring segments
-- this is also called a "geo spatial index"
-- this is also supported by postgres via "postgis"
+- this is also called a "geo spatial index" - geo spatial indices are of different types like quad trees, geo hash, etc
+- this entire solution is supported by postgres via "postgis"
 
 ![](/assets/img/high-level-design/yelp-quad-trees.png)
 
-- we can add new places to our system using a cron. it would involve updating the relational database, quad trees, etc
+- we can add new places to our system using a cron
+- understand that it would involve updating the relational database, the geo spatial index, etc
 - we can partition data based on region id
 - this way, places in the same region are present on the same server
-- issue - some regions might be more popular
-- solution - "place details" data is partitioned on place id, while region to place mapping is partition on region id
 - for availability and to scale reads, we can use a primary secondary approach
 - the servers used for reading and writing are separated from one another
 - "aggregator server" - aggregate results from the quad tree servers and return to the user
 - it can handle concerns like "ranking" of results based on ratings, relevance, etc
-- so, the read flow becomes load balancer -> read servers / aggregator server
 
 ## Uber
 
@@ -519,8 +518,9 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 - however, it does not work for the case where we show the notification to the driver for a few seconds before removing the popup
 - issue 3 - also, remember that we would have multiple instances of the ride matching service as well
 - so, logic similar to ticket master etc can be applied here
-- we would use a "distributed lock" (like redis), which helps the different instances of ride matching service coordinate
-- additionally, we would add a timeout (say of 10s) so that the lock on the driver is automatically "released" if they do not accept the ride within 10s. this helps the driver accept other ride requests / match that rider to other potential drivers
+- we would use a "distributed lock" like redis, which helps different instances of matching service coordinate
+- additionally, we would add a timeout (say of 10s) so that the lock on the driver is automatically "released" if they do not accept the ride within 10s
+- this helps the driver accept other ride requests / match that rider to other potential drivers
 
 ![](/assets/img/high-level-design/uber-driver-redis-distributed-lock.png)
 
@@ -545,13 +545,11 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 ### High Level Design
 
 - users post tweets via load balancers, which distribute traffic to application servers
-- dns resolves domain names to ip addresses
 - it uses a sequencer called snowflake to generate unique ids for tweets, users, etc
 - we need to monitor traffic (e.g. new year) to automatically scale our workloads
 - we need to use replication and sharding of databases to handle scale
 - we need a failover strategy for resilience
 - twitter uses "polyglot persistence" for its architecture
-- hdfs for events and logs for analytics
 - cassandra for storing tweets - we do not need to support complex queries but at the same time, we need to support very high read and write throughput
 - s3 like blob storage for media files
 - mysql for ad management, with sharding and replication implementation. ad management involves bidding between advertisers etc, which requires strong consistency
@@ -563,8 +561,7 @@ _this is a starting point, we can add more details, e.g. different qualities of 
   - search for all historical tweets, used for historical and analytical purpose (stored in disk)
 - we can use cdc to automatically capture updates in tweets etc to update the lucene index
 - we use caching at different layers including usage of cdn
-- segcache - it uses caching heavily. segcache is better than redis and memcached for twitter as it has small object sizes. redis and memcached store more metadata for each object, which is not as efficient for twitter's use case
-- zookeeper - maintains service configurations. this in turn provides primitives like distributed locks, leader election, etc
+- segcache - segcache is better than redis and memcached for twitter as it has small object sizes. redis and memcached store more metadata for each object, which is not as efficient for twitter's use case
 - observability - monitoring, logging, alerting, sampling to reduce overhead, etc
 - "heavy hitter problem" - public figures with millions of followers generate massive traffic spikes. a single counter cannot maintain their likes and views. so, we can use "sharded counters"
 - sharded counters also help determine "top k trends", both local trends and global trends. it uses a sliding window to determine the latest trends for hashtags. it places the shared counters close to the user (like cdn) to reduce latency. disadvantage - eventual consistency i.e. the likes and views might not be updated immediately
@@ -579,7 +576,7 @@ _this is a starting point, we can add more details, e.g. different qualities of 
   - request distribution (osi layer 7)
   - session distribution (osi layer 5)
 - session distribution determines which clients connect to which servers. if the client tried to connect to all servers, there would be a lot of connection overhead for the client
-- request distribution determines out of the servers which were selected by the client, which server actually gets the request
+- request distribution determines out of the servers selected above, which one gets the request
 
 #### Request Distribution
 
@@ -610,7 +607,6 @@ _this is a starting point, we can add more details, e.g. different qualities of 
   - e.g. client 1 establishes connection with 0, 1 and 2
   - however, it takes into account the fraction as well - weight of server 1 is 1, while server 0 and 2 is only 0.5
   - this weight is taken into consideration when the client uses p2c to select the server for sending the request
-  - then, it uses p2c to determine the server to send the request to
   ![](/assets/img/high-level-design/twitter-client-side-load-balancing-session-deterministic-continuous.png)
 
 ### Timeline Generation
@@ -643,34 +639,31 @@ _this is a starting point, we can add more details, e.g. different qualities of 
   - disadvantage - expensive writes
 - "fan out on write" will not work for users like elon with millions of followers
 - it will cause a problem called "thundering herd", where we would suddenly have to process millions of writes
-- so, we use a hybrid approach i.e. we use fan out on read for them, whereas fan out on write for users with lesser followers
+- so, we use a hybrid approach - fan out on read for celebrities, fan out on write for regular people
 - now just like writes, elon's tweet might get lots of reads once published from multiple users, thus causing a "hot partition" like problem on our key value store
 - solution - use a cache layer for the tweet service, and use multiple read replicas in it to distribute reads
 - for ranking, we can use a machine learning model that can factor in parameters like recency, no. of likes and comments, relevance to the user, etc
-- for timeline, we might also need a "pagination" approach - so, an api with pagination support (page size, cursor, etc) is needed
+- for timelines, we would also need "pagination" support - page size, cursor, etc
 - to be able to easily find the followers of a user, we can choose the partition key and then create secondary indices accordingly
 - similarly, the posts table can also be indexed by the creator
 
-## Instagram
-
-### Differences from Twitter
-
 ## TinyURL
-
-- a url shortening service creates a short link for a url
-- advantage - easier to type and share, reads better in communications, etc
 
 ### Requirements
 
+- a url shortening service creates a short link for a url
+- advantage - easier to type and share, reads better in communications, etc
 - "short url generation" - generate a short and unique alias for a url
 - "redirection" - redirect users to the original url
 - "expiration" of these short links
-- allow for customization of the short links, expiry, etc
 - deleting expired urls, even if not reused, helps keep storage costs low and queries faster
-- unpredictable - generated urls should not be guessable (e.g. using sequential ids), as otherwise, attackers can otherwise guess patterns and attempt to guess other links
+- allow for customization of the short links, expiry, etc
+- unpredictable - generated urls should not be guessable (e.g. using sequential ids), else attackers can guess other links
+- consistency - we can have eventual consistency - anybody need not be redirected for the short url immediately
 - availability / fault tolerance - any downtime will cause redirection to fail, so system should be highly available and fault tolerant
 - scalability - easily handle redirection as traffic patterns change
-- latency - since it introduces an extra hop, it should be as low and seamless as possible
+- latency - since it introduces an extra hop, it should be as low and seamless as possible - say 200ms
+- why 200ms - anything less than that is not perceivable by humans, so it is almost near realtime
 
 ### Estimations
 
@@ -683,3 +676,203 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 - read qps = 100*77 = 7.7k qps
 - shortening requests bandwidth (writes) = 77 qps * 1kb * 8 = 616 kbps
 - shortening requests bandwidth (reads) = 7.7k qps * 1kb * 8 = 61.6 mbps
+
+### API Design
+
+- shorten(api_key, original_url, custom_alias, expiry) -> short_url
+  - custom alias - optional key that the customer defines as the short url
+- redirect(short_url) -> original_url
+  - the status code here can be 301 or 302 redirect
+  - 301 redirect - temporary redirect. it means that our server would be reached for subsequent requests for the short url
+  - 302 redirect - permanent redirect. it means that the client, dns servers, etc can cache and directly return the original url for subsequent requests
+  - there are pros and cons for both
+  - e.g. for 302 redirect, we might not be able to show analytics for how many hits happened for the short url
+  - but then for 301 redirect, we would have to scale our servers more
+- delete(api_key, short_url) -> success / failure
+
+### High Level Design
+
+- we would use mongodb as our database
+- mongodb vs cassandra -
+  - we need a read heavy store, not write heavy (see requirements). cassandra is for write heavy workloads
+  - cassandra follows a leaderless architecture unlike mongodb, which follows a master slave architecture. so availability of mongodb might be lower due to failover. similarly, scalability of mongodb might depend on how we shard our data etc unlike in cassandra
+  - mongodb support complex querying patterns, complex data types and indices (but this feature is not required for this design)
+- other common building blocks include an api gateway, rate limiters, cache, etc
+- because we are using multiple data centers, we can use a "global load balancer"
+- how to maintain unique urls across data centers - we can prepend for e.g. the data center id to the urls, e.g. service.com/x/short123, where x represents the id of the data center
+- what if the wrong data center receives the request for redirection -
+  - it would first fetch the correct url from the appropriate data center
+  - then, it would return this url
+  - additionally, it would cache it for future requests
+  - this helps reduce the latency for future requests
+- how to avoid duplicate short url generation - the system first checks if the entry for the original url already exists. this helps avoid the computation of duplicate urls
+- how to avoid two concurrent requests overwriting each other - we use mongodb, which has a single master. recall that we can do so because our system is read heavy and not write heavy. now, mongodb can implement locks and concurrency protocols to avoid issues
+- when people request for custom aliases, we need to check if the alias is already taken
+- we use a sequencer for generating numeric ids (i.e. base 10)
+- for readability, we encode it using base 58 - a-z, A-Z, 0-9 except for 0, O, l and I to avoid confusion
+- value to character mapping -
+  - 0-8 -> 1-9 (no 0)
+  - 9-32 -> A-Z (no I, O)
+  - 33-57 -> a-z (no l)
+- the database maintains a "used" and "unused" sets of ids. understand that the database contains the base 10 version for the two sets, while the servers return the base 58 version to the users
+- we take regular backups to s3 for disaster recovery
+- we have read replicas for read traffic
+- we can use a consistent hashing mechanism to horizontally scale our system
+- for unpredictability, each server on the ring picks a random id from the pool of ids assigned to it, instead of picking sequentially
+- remember that to avoid duplicates, even after generating the random short url, we would have to check if it already exists
+- we use rate limiters to prevent abuse of our system
+- url table - the primary key would be short url. this way, it ensures uniqueness, indexes on it for quick search, etc
+- my thought - we can also have a secondary index on the original url to avoid duplicate short url generations
+- remember - we can also maintain a cache to make lookups even faster
+- instead of a typical cache, we can also use a cdn
+- my thought - why was bloom filter not mentioned by anyone?
+- since reads and writes are so different in nature, we can use the cqrs pattern as well to separate the read and write workloads
+
+### Conversion Example
+
+- assume that 2468135791013 is the unique id
+- converting base 10 to base 58
+  - 2468135791013 % 58 = 17
+  - 42554065362 % 58 = 6
+  - 733690782 % 58 = 4
+  - 12649841 % 58 = 41
+  - 218100 % 58 = 20
+  - 3760 % 58 = 48
+  - 64 % 58 = 6
+  - 1 % 58 = 1
+- so, it comes out to be 1 6 48 20 41 4 6 17
+- so, the value for this is 27qMi57J
+- to convert it back to base 10, lets assume the same example
+- first we convert the characters to values, and then we apply the formula -
+  - 1 * 58^7 +
+  - 6 * 58^6 +
+  - 48 * 58^5 +
+  - 20 * 58^4 +
+  - 41 * 58^3 +
+  - 4 * 58^2 +
+  - 6 * 58^1 +
+  - 17 * 58^0
+  - = 2468135791013
+
+### Limits
+
+- we want our short urls to be at least 6 characters long
+- 100000 - this becomes 58^5 = 656,356,768
+- so, we would start generating ids from approximately 1 billion
+- similarly, we are using 64 bit ids
+- this means the longest url we can generate would be $\log_{58}(2^{64}) \approx 10.926$ or 11 characters long
+- life time for our url generation - 
+- total available ids - 2^64 - 1 billion (starting range)
+- total requests per month (requirements) - 200 million per month
+- so, total years = (2^64 - 1 billion) / (200 million * 12) ~ 7.5k million years
+
+## Web Crawler
+
+- a bot that fetches web pages, parses content, and extracts links for further crawling
+- use cases - 
+  - validate html structure and links
+  - create mirrors of popular websites
+  - check for copyright infringement
+- non functional requirements -
+  - scalability / performance - distributed / multithreaded to fetch millions of documents
+  - fault tolerant - a failure in between should not start re-crawling from the start
+  - extensibility - support protocols beyond http, different kinds of content, etc
+  - "politeness" - websites ship these as part of "robots.txt". described later
+- estimation -
+  - 5 billion pages to crawl
+  - assume each page has content of 2mb
+  - so, storage = 10pb
+  - assume each page takes 100ms to crawl
+  - so, total time ~ 15.85 years
+  - so, this was if we had one server having 1 core
+  - now, assume we had multiple servers, all of which are multi core
+  - we can find no. of servers required based on the time we would want to finish the crawl in, e.g. 1 day
+- flow on a high level - 
+  - fetch html for urls
+  - extract urls and content from the html
+  - store content in a data store
+  - repeat the process for the extracted urls
+- selecting the right seed urls is also a problem -
+  - we can manually select a few urls
+  - we can scan a range of ip addresses, and include them as seed urls if they have web servers running
+  - we need to select the urls with the right category, popularity, etc as per our use case
+  - the whole of www is a graph. we should select urls that allow us to discover more nodes in the graph
+- we start with a "url frontier" - it contains the set of urls to crawl
+- solution 1 - a worker dequeues the urls from the url frontier
+- it then fetches the webpage, and extracts the content and urls from it
+- workers talk to custom "dns resolver" that caches frequently used ips
+- this helps speed up dns lookups as compared to using the generic dns resolver
+- for instance, it can also be a simple redis cache on top of the third party dns resolver
+- the urls are added back to the url frontier
+- the content is stored in a "blob store"
+
+![](/assets/img/high-level-design/web-crawler-inital.png)
+
+- issue - the worker is doing too many things. monolithic, hard to scale, etc
+- what if we fail at the parsing stage - we would have to redo the fetching of the webpage
+- solution 2 - we split the worker into different components
+- "crawler" - fetches the webpage, and then saves the html content as is to s3
+- it also saves the metadata to a database - url(link, s3_path)
+- next, it queues this metadata entity to another queue called "extraction queue"
+- then, we have "extractors" that consume from this queue
+- the extractors parse the urls and add it back to the url frontier
+- they also parse the content and add it to the blob store
+
+![](/assets/img/high-level-design/web-crawler-final.png)
+
+- fault tolerance - what if a website goes down? how does a worker handle this?
+- solution 1 - some in memory retry with exponential backoff
+- issue - what if the worker goes down during the backoff? we would loose the retry state
+- solution 2 - kafka does not support retry out of the box, but message queues / sqs does
+- it has "visibility timeout" - consumers do not see the message till this time
+- if the consumer fails to process the message within this time, the message becomes visible again and can be consumed by another worker in the queue
+- if the consumer successfully processes the message, it can delete the message from the queue
+- additionally, it supports parameters like "max receive count" (how many times to retry), "dlq" (move to this queue after all retries are exhausted), etc
+- so, talk about how the idea of at least once processing semantics etc work here. interviewers expect this
+- my layman understanding of kafka vs message queue - kafka is for scale / data processing etc, but when we have requirements around retries, routing, etc, message queues have more features. message queues have a push model unlike kafka's pull model. kafka retains messages and uses offsets etc, while message queues delete messages once processed
+
+### Politeness
+
+- websites ship a file called "robots.txt"
+- it contains different kinds of rules for bots
+- we would add these rules to for e.g. the metadata alongside the urls we were storing
+- rule 1 example - which pages are not supposed to be crawled (e.g. /private/*)
+- when the crawler fetches such a url, it would simply skip it - e.g. acknowledge the broker without doing any processing
+- rule 2 example - crawl delay (e.g. 10 seconds between requests)
+- say the crawler will verify if (now - last_crawled_time) for the url is more than the crawl delay
+- if not, it would set the visibility timeout of the message in the queue to for e.g. (crawl_delay - (now - last_crawled_time))
+- entity - domain(domain, last_crawled_time, crawl_delay, disallowed_paths)
+- note how this is specific for a domain, and maybe multiple urls under the same domain would share this
+- we can mention how we can cache this content as well, as robots.txt does not change frequently
+- crawlers should also include a "user agent" in the header, which identifies the crawler to the website. this is also used by websites to for e.g. contact the crawler in case of any issues
+
+### Deduplication
+
+- issue 1 - avoid crawling duplicate urls
+- these end up wasting significant compute resources on our end
+- solution - the url entity in the meta database can have the link as a primary key
+- the extractor would first query the meta database to check if the url already exists there
+- only if it does not exist would it add it to the url frontier
+- issue 2 - avoid parsing duplicate html content
+- again, it would waste significant compute resources on our end
+- solution - when the crawler fetches the webpage, it can calculate a hash of the content and store it in the database
+- so, url now has the following fields - link, s3_path, content_hash
+- if we were for e.g. using dynamodb, we could have a global secondary index on the content hash column to make lookups faster
+- if a url entity with the same content hash already exists, we can skip parsing the content and just add the url to the url frontier
+- issue 3 - some urls or domains might have too many sub pages, which we might want to avoid
+- solution - we can have a "depth" parameter
+- e.g. whenever the extractor extracts urls, it increases the depth by 1 when adding the new urls
+- we can set a threshold for this depth, and if it is crossed, we can stop adding new urls to the url frontier
+
+### Miscellaneous
+
+- we can use redis for a client side rate limiter. this helps avoid hitting the same website too many times in a short span of time
+- to avoid hitting the same website with multiple workers, we can use a distributed lock on the domain name
+- solution 2 - we can produce a hash of the domain, and assign each worker to a range of hashes
+- this way, the same worker would be responsible for crawling sites of the same domain
+- additionally, this allows us to for e.g. place each worker close to the websites they crawl
+- in a way we are using "bfs" as we are using a queue - dfs would have been exploring all the sub pages for a website
+- "revisit policy" - we might want to visit certain dynamic pages like the news website more frequently than static pages like blogs
+- similarly, we might assign "priority" to certain websites based on various heuristics like category, popularity, etc. so, a traditional queue might not work here, and we might have to use a "priority queue" instead
+- for implementing different priorities, we can have multiple queues - a high priority queue, a low priority queue and so on
+- if we carefully see, queues, databases, etc, we are basically implementing a convoluted "scheduler"
