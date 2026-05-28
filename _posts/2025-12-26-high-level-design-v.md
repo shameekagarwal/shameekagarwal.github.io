@@ -989,3 +989,56 @@ TODO - https://www.youtube.com/watch?v=0LTXCcVRQi0
 - the design below not contains both logics for [message service](#message-service) and [group handling](#handling-groups)
 
 ![](/assets/img/high-level-design/whatsapp-final-design.png)
+
+## Typeahead / Autocomplete / Suggestions
+
+### Requirements
+
+- provides realtime suggestions as users type
+- in this case, we assume it is based on "current trends"
+- the suggestions need to be ranked as well
+- low latency - under 200ms
+- fault tolerant - provide suggestions even if individual components fail
+- scalability - handle increasing number of users and suggestions
+
+### High Level Design
+
+- as a user types, we do need to reload the whole page, but just update the suggestions list. we use "ajax" to achieve this easily
+- a frequently searched term becomes a "trend". so, there needs to be a "threshold" for this
+- we might need to have different trends based on region
+- in this case, the thresholds for different regions might be different as well
+- we use a "trie", since it helps with prefix based lookups
+- additionally, this needs to be stored in ram for low latency
+- however, it can be stored in disk for durability and recovery as well
+- in the trie data structure, we can for e.g. collapse multiple nodes into one node if all the nodes along this path have only one child, something like xylophone for instance maybe
+- now at the leaf node, we store the count of how many times the term was searched
+- if a user types uni, the system first traverses all the descendants of uni
+- then, it ranks them by their counts and finally returns the top k suggestions
+
+![](/assets/img/high-level-design/trie-initial-structure.png)
+
+- now, to avoid traversing the whole subtree, we can store the top k ranked suggestions for each node
+- tradeoff - this significantly increases the storage
+
+![](/assets/img/high-level-design/trie-populated-structure.png)
+
+- "partitioning trie" - we cannot store the whole trie in a single machine
+- so, we partition the trie by prefixes - e.g. a to m in server 1, n to z in server 2
+- the mapping can be managed via zookeeper
+- issue - hot / skew partitions
+- solution - we keep splitting further, e.g. a to ea, ea to m and then n to z
+- for incoming queries, the system queries zookeeper to find the right server, and then forwards the query to the server storing the trie partition
+- now, we need to update the trie itself
+- doing it realtime can have significant performance implications and is not required here
+- so, we log the timestamp etc of the searches
+- then an offline job that runs for e.g. hourly processes these logs
+- it accumulates the count for each term and then updates the partition
+- there can be multiple approaches for updating the partitions -
+  - approach 1 - we reconstruct the trie partition, and then swap it with the original partition
+  - approach 2 - we update the secondary replica, and then swap the primary and secondary replicas
+- "log service" - logs the searches
+- "aggregation service" - aggregates the logs
+- "trie builder" - builds / updates the trie partitions
+- "suggestion service" - queries the trie partitions
+
+![](/assets/img/high-level-design/typeahead-architecture.png)
