@@ -837,7 +837,7 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 - it contains different kinds of rules for bots
 - we would add these rules to for e.g. the metadata alongside the urls we were storing
 - rule 1 example - which pages are not supposed to be crawled (e.g. /private/*)
-- when the crawler fetches such a url, it would simply skip it - e.g. acknowledge the broker without doing any processing
+- when the crawler fetches such a url, it would skip it - e.g. acknowledge the broker without any processing
 - rule 2 example - crawl delay (e.g. 10 seconds between requests)
 - say the crawler will verify if (now - last_crawled_time) for the url is more than the crawl delay
 - if not, it would set the visibility timeout of the message in the queue to for e.g. (crawl_delay - (now - last_crawled_time))
@@ -854,8 +854,9 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 - the extractor would first query the meta database to check if the url already exists there
 - only if it does not exist would it add it to the url frontier
 - issue 2 - avoid parsing duplicate html content
+- e.g. different websites (e.g. mirrors?) might have the same content but different urls
 - again, it would waste significant compute resources on our end
-- solution - when the crawler fetches the webpage, it can calculate a hash of the content and store it in the database
+- solution - when the crawler fetches a webpage, it calculates a hash of the content and store it in the db
 - so, url now has the following fields - link, s3_path, content_hash
 - if we were for e.g. using dynamodb, we could have a global secondary index on the content hash column to make lookups faster
 - if a url entity with the same content hash already exists, we can skip parsing the content and just add the url to the url frontier
@@ -871,8 +872,120 @@ _this is a starting point, we can add more details, e.g. different qualities of 
 - solution 2 - we can produce a hash of the domain, and assign each worker to a range of hashes
 - this way, the same worker would be responsible for crawling sites of the same domain
 - additionally, this allows us to for e.g. place each worker close to the websites they crawl
-- in a way we are using "bfs" as we are using a queue - dfs would have been exploring all the sub pages for a website
+- actually we are using "bfs", as we are using a queue - dfs would have been exploring all the sub pages for a website
 - "revisit policy" - we might want to visit certain dynamic pages like the news website more frequently than static pages like blogs
 - similarly, we might assign "priority" to certain websites based on various heuristics like category, popularity, etc. so, a traditional queue might not work here, and we might have to use a "priority queue" instead
-- for implementing different priorities, we can have multiple queues - a high priority queue, a low priority queue and so on
-- if we carefully see, queues, databases, etc, we are basically implementing a convoluted "scheduler"
+- for implementing priorities, we can have multiple queues - a high priority queue, a low priority queue and so on
+- the queue, database, etc we introduced in this design are basically components of a "scheduler"
+
+TODO - https://www.youtube.com/watch?v=0LTXCcVRQi0
+
+## Whatsapp
+
+### Requirements
+
+- support one to one conversations
+- support group conversations
+- enable sharing of images, videos, documents, etc
+- storage - persist messages for users only until they are delivered
+- send out push notifications when users come back online
+- low latency - deliver messages as soon as possible
+- consistency - messages should have same order for every one. so, consistency > availability
+- security - end to end encryption of messages
+- scalability - scale with increasing number of users and messages
+
+### Estimation
+
+- 2 billion dau
+- 5 messages per day per user
+- say messages are retained in servers for 30 days - messages are lost if users do not connect within this window
+- say each message is 2kb on an average
+- so, storage required = 600 tb
+- from here, calculate bandwidths etc
+- whatsapp servers can handle 10 million connections per server
+- so, for 2 billion dau, we would need 200 chat servers
+
+### Entities
+
+- user
+- chat
+- message
+- client
+
+### High Level Design
+
+- architecture - user a <-> chat server <-> user b
+- basically, both user a and user b establish connections with the chat server
+- step 1 - user a sends the message to the chat server
+- step 2 - the chat server sends an acknowledgement to user a
+- step 3 - the chat server sends the message to user b
+- step 4 - user b sends an acknowledgement to the chat server
+- step 5 - the chat server notifies user a that the message was delivered
+- step 6 - user b reads the message
+- step 7 - user b notifies the chat server that the message was read
+- step 8 - the chat server notifies user a that the message was read
+
+### Websockets
+
+- why websocket - http does not keep the connection open
+- so, it uses polling, which is resource intensive and has latency
+- websocket maintains a persistent connection
+- it allows for bidirectional communication
+- now, assume we had one chat server as described in the basic architecture of [high level design](#high-level-design-7)
+- we would not be able to scale it to billions of users
+- so, we have multiple "websocket servers" to support multiple users
+- each user establishes a connection with one of these servers
+- we have a "websocket manager" that manages the mapping between user (or device / session) and websocket server
+- why "device" / "session" - a user can be logged in from multiple devices, and we want to deliver messages to all of them
+- the websocket manager can use redis to store these mappings internally
+- advantage - unlike dynamodb which uses disk, redis is in memory, resulting in faster lookups
+- we don't really need to think about concurrent updates etc - we just need fast reads and writes here
+- now, we need a load balancer to distribute the traffic between these websocket servers
+- we cannot use a layer 7 load balancer here - layer 7 load balancers terminate the connection and create a new connection. this works well when we need to forward traffic to stateless web servers
+- however, we need persistent connections here - so, we use a layer 4 load balancer here
+- it uses tcp, and it almost feels as if the load balancer is not there - it does not do routing based on inspection of content etc, unlike layer 7 load balancers
+- overall flow - user a sends a message to their websocket server
+- the websocket server queries the websocket manager to find the websocket server for user b
+- then, it forwards the message to user b's websocket server, which delivers it to user b
+- to avoid frequent lookups, websocket server can cache the mapping
+- however, the websocket manager would then have to invalidate the cache of the websocket servers when the mappings change
+
+![](/assets/img/high-level-design/whatsapp-websocket.png)
+
+- the load balancer can use "least connections" for load balancing in this case
+- i also think we can use "consistent hashing" as usual here
+- the user ids can be present on the ring, we can add / remove websocket servers as needed
+- then, we would accordingly call out how in case of rebalancing, the mapping of the websocket manager would require updating, the cache of the other websocket servers would require invalidation, etc
+
+### Handling Media Files
+
+- using our websocket servers etc for multimedia might create a bottleneck
+- so, use an approach similar to [youtube](#youtube) - using singed urls, cdn, etc
+- our servers can authenticate with the blob storage and return the clients a signed urls
+- the clients can then directly interact with the blob storage for uploading / downloading files
+- additionally, the servers store these signed urls in the message entity in the database
+
+### Message Service
+
+- this is where we store all the messages
+- this helps us handle offline users as well
+- so, there are two things the websocket servers do (in parallel maybe)
+  - communicate with other websocket servers for realtime message delivery
+  - forward these messages to the message service
+- we can have an additional cleanup service that deletes messages after the retention period
+- it can use key value store like dynamodb
+- mention entities, their primary and sort keys, gsi, etc here as well
+
+### Handling Groups
+
+- websocket servers can know from websocket manager which users are connected to which websocket server
+- so, it works when a user communicates with another user directly
+- however, the websocket manager cannot for e.g. tell it which users are a part of a group etc
+- so, group messaging is handled differently
+- assume we have a "group service" with its own mysql database, which manages the group metadata like name and description, membership of a group, etc all with consistency and scalability
+- so, the websocket server would first query the group service to find the members of the group
+- then, it would query the websocket manager to find which websocket servers these members are connected to
+- finally, it would forward the message to the right websocket servers for delivering the message
+- the design below not contains both logics for [message service](#message-service) and [group handling](#handling-groups)
+
+![](/assets/img/high-level-design/whatsapp-final-design.png)
