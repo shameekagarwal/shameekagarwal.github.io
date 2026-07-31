@@ -73,40 +73,6 @@ title: High Level Design II
   - now, since the write has not been processed by the database yet, it will not return this record to the cache, and our system will think that the data does not exist in the first place
   - solution - make the ttl of cache higher
 
-## Consistency
-
-- note - [acid consistency](#transaction) != [cap consistency](#brewers-cap-theorem)
-- various definitions - 
-  - each replica should have the same data
-  - each read should give the value of the latest write
-- so, we use "consistency models" instead - these are ordered from weak to strong
-- "eventual consistency" -
-  - the weakest consistency model
-  - the replicas converge after a finite time, when no new writes are coming in
-  - however, it is always available
-  - e.g. - dns system, cassandra
-- "causal consistency" -
-  - "dependent operations" are "causally related"
-  - ordering of causally related operations is guaranteed
-  - ordering of non causal operations is not guaranteed
-  - e.g. y = x + 5, so writing of y depends on reading of x
-  - this prevents non intuitive behavior of eventual consistency
-  - e.g. display replies to a comment after the comment itself
-- "sequentially consistency" -
-  - preserves ordering by each client
-  - however, it might not be in the same order as some global clock
-  - e.g. every one in a group should see the messages in the same order
-  - however, if two people replied concurrently at the same time, there is no guarantee that we see the message of the person who typed first before the other one
-- "strict consistency / linearizability" -
-  - strongest consistency model
-  - a read operation from any replica will always return the most recent write operation
-  - very difficult to implement in distributed systems
-  - "synchronous replication" - consensus algorithms like paxos / raft are used to achieve this
-  - strict consistency affects availability. so, "quorum based replication" is used to increase this availability
-  - e.g. password change of bank account, when it is compromised
-  - e.g. google spanner, and also hbase i think guarantee strict consistency for a lot of operations
-- we need to choose between performance / latency / availability and consistency
-
 ## Failure Modes
 
 - ordered based on how easy / difficult they are to deal with
@@ -378,7 +344,9 @@ title: High Level Design II
 - in this case, we can choose between "latency" and "consistency"
 - pac is the same as cap, while elc is for else choose between latency consistency
 - what consistency vs latency means - we can choose between asynchronous replication and synchronous replication during writes. similarly, we can either read from any replica for fast reads, or read from master for the latest consistent value
-- my understanding - in mongodb for e.g. we can configure the consistency levels when performing operations, so that we choose consistency over low latency, by for e.g. reading from the leader, ensuring writes go to all the replicas, etc
+- dynamodb is a pa/el system. it provides eventual consistency
+- spanner is a pc/ec system. it provides consistency using techniques like atomic clocks and 2 phase commit
+- my understanding - mongodb for e.g. is unique, as we can configure the consistency levels when performing operations, so that we choose consistency over low latency, by for e.g. reading from the leader, ensuring writes go to all the replicas, etc
 
 ## Improve Quality Attributes of Databases
 
@@ -533,6 +501,16 @@ title: High Level Design II
 - "serving layer" - joins the outputs of the batch layer and speed layer and combines them into one
 
 ![lambda architecture](/assets/img/high-level-design/lambda-architecture.svg)
+
+- "kappa architecture" - my brief understanding is that the batch layer is entirely skipped. the streaming layer writes the data, and that same data can be used for all kinds of use cases - historical analysis and realtime queries
+
+### Medallion Architecture
+
+- "medallion architecture" - organize data in a lakehouse, with incrementally and progressively improving the quality of data
+- "bronze layer" - where we land all the data from external systems. source table as is. focus is quick cdc. benefit - it allows us to reprocess data if needed without rereading the data from the source system
+- "silver layer" - data from the bronze layer is matched, merged, conformed and cleansed ("just enough"). it enables self service analytics for adhoc reporting.
+- lakehouse pipelines typically follows elt and not etl - so, just enough transformations with focus on speed
+- "gold layer" - de normalized and read optimized data models with fewer joins. the final layer of data transformations are applied here
 
 ## OAuth
 

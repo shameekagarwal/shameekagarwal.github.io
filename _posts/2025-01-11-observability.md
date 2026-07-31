@@ -479,3 +479,55 @@ title: Observability
   - "groups" are given access to "accounts" via "roles"
   - groups belong to a specific "authentication domain"
   - so, only users of that specific authentication domain can be part of that group
+
+## Prometheus
+
+### Basics
+
+- used to monitor "metrics"
+- uses a "time series database" and a "pull model"
+- pro of a pull model - no thundering herd problem where every agent pushes metrics on its own schedule - the server controls the scrape cadence
+- con of a pull model - needs network reachability, which gets tough when firewalls are involved. 
+- "prometheus server" - scrapes metrics over http. stores them in its own tsdb (local disk, wal, compaction, etc), and evaluates rules against them
+- "target" — anything exposing a /metrics http endpoint in the prometheus text format
+- "format / data model" - metric name, labels, value, optional timestamp. e.g. http_requests_total{method="GET", status="200", instance="pod-a"}.
+- "exporters" — small programs that sit next to things that for e.g. do not expose prometheus themselves. examples -
+  - node_exporter - used for exposing linux host metrics. it reads proc, sys, disk, cpu, i/o, etc
+  - mysqld_exporter - connects to mysql instances as a regular db client, runs queries like status against it and finally exposes them
+- "client libraries" — prometheus provides sdks for instrumenting apps written using go, java, etc
+- "service discovery" - in kubernetes for instance, pods, services, etc can keep coming up and going down (i.e. they are "ephemeral"). so, prometheus supports a service discovery mechanism so that it can automatically discover these "targets" and scrape their metrics
+- "promql" — the query language for slicing and aggregating the time series data
+- "alertmanager" — prometheus evaluates "alerting rules" and fires alerts to alertmanager, which then handles deduplication, grouping, etc and routes to slack, pagerduty, etc
+- "pushgateway" - for short lived batch / cron jobs that die before prometheus could ever scrape them. they push once to the pushgateway, and prometheus scrapes that instead
+- "remote_write" / "remote_read" — prometheus can forward every scraped sample to an external store (e.g. a vendor backend like new relic)
+
+### Prometheus Metric Types
+
+- "counter" - monotonically increasing
+- e.g. http_requests_total, etc
+- never read raw - always wrap it using rate, increase, etc
+- "gauge" - arbitrary up / down value. it is a point in time value
+- e.g. memory_usage_bytes, queue_size, etc
+- read gauges directly, do not use rate etc
+- "histogram" - assume we have to calculate 99 percentile
+- we would have to store every single request in a sorted manner
+- issue - this approach is not scalable
+- solution - we instead maintain buckets
+- assume we have 5 buckets - 0.1s, 0.5s, 1s, 2s, +Inf
+- when we get a request of duration 1, we increment the counters of the buckets 0.1, 0.5, and 1
+- additionally, it also maintains the total count and sum of all the values observed
+- now, the percentile calculation happens "server side" i.e. the clients just push the bucket counters, counts and sums etc everything to the server
+- advantage - now, assume multiple instances of a service are pushing these values. we can compute the aggregate across all these instances
+- "summary" - like histogram but the percentiles are computed client side, and these get pushed directly
+- because of this, the value cannot be aggregated across the different instances
+
+### Deployment Details
+
+- [kube-prometheus-stack (helm chart)](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack)
+- it comes with prometheus, alertmanager, grafana, default alerts and dashboards, custom resource definitions for alerting rules, etc
+- kube-state-metrics - an exporter that exposes the kubernetes object state like deployment replica counts, pod phase, etc
+- we need some permanent storage as pods are ephemeral. one option is to use a persistent volume
+- however, the preferred approach apparently is to use a short local retention with remote_write to a durable backend (e.g. new relic)
+- high availability - prometheus is only vertically scaled and not horizontally sharded. since it is just making simple get calls, it can work easily. for fault tolerance, we run identical replicas which scrape and then store the exact same data. so, dedupe should be handled for e.g. by the durable backends like new relic
+- now, a slightly different architecture - we deploy an otel collector instead - it has a prometheus receiver, with scrape config semantics similar to prometheus. it converts samples to the otlp data model and finally exports it to for e.g. new relic backend
+- this way, we are not even running the whole prometheus server, with considerations around storage etc, while our apps continue using the "client libraries", "exporters", etc of prometheus that we discussed [here](#basics)

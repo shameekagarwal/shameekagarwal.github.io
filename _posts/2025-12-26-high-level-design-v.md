@@ -1214,7 +1214,7 @@ TODO - https://www.youtube.com/watch?v=0LTXCcVRQi0
 - the "auth service" picks these, and then checks them with the "external provider"
 - it accordingly updates the database
 - using kafka removes slow network calls built with retries from customer experience
-- settlements (yellow) - finally, the "settlement service" runs in the background on a cron to handle the settlements
+- settlements (yellow) - finally, the "settlement service" runs in background to handle the settlements
 
 ![](/assets/img/high-level-design/payment-system-hld.png)
 
@@ -1361,6 +1361,7 @@ TODO - https://www.youtube.com/watch?v=0LTXCcVRQi0
 - solution 1 - completion service uses thread per request model. issue - this has bigger tail latency. additionally, we would hit the concurrency limits, have context switching overhead, etc
 - solution 2 - completion service uses an "internal request queue". the size of this queue is "bounded" (fixed), so if the incoming request cannot fit inside the queue, the service sends back an error
 - a pool of workers will now consume from this queue
+- this is basically mentioning how an asynchronous solution might work better than a synchronous one. this approach can be mentioned in other problems as well
 - it handles "back pressure" - when we get more requests than the server can handle, the requests are queued
 - the cluster autoscaler for the completion service pods now will also depend on the queue lengths apart from cpu and memory metrics
 - the gateway is also aware of these metrics, and forwards requests to pods with lower queue lengths, resource consumption, etc

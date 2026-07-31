@@ -497,7 +497,7 @@ title: Snowflake
             src.store_id,
             src.location,
             src.employees
-          );       
+          );
   ```
 - we can use streams in the `when` clause of tasks! so, we can pretty much build an entire etl pipeline just using snowflake - 
   ```txt

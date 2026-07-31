@@ -85,12 +85,12 @@ go through [this](/posts/high-level-design/#load-balancers) and [this](/posts/hi
 
 - tiered architecture advantage - load balancers can be optimized, scaled independently, etc for their specific tier
 - "tier 1 load balancer" - simply route the request to tier 2 load balancer
-- they use ecmp "equal cost multi path" routing i.e. request can be routed through various paths with the same priority
-- so, it is like tier 1 load balancer can route to any tier 2 load balancer
+- tier 1 load balancer can route to any tier 2 load balancer
 - "tier 2 load balancer" - glue between tier 1 and tier 3 load balancer
 - they can be stateful or stateless
 - they need to ensure that the request gets routed to the same tier 3 load balancer every time - so, this is where the stateful vs stateless logic above applies
 - they use layer 4 load balancing - recall how tcp can handle the forwarding of the same tcp connection to the same backend server
+- why do we need to route to the same tier 3 load balancer instance - because multiple tcp packets form a single application layer request. and tier 3 is basically parsing the headers, url, etc to route to the right microservice, backend instance, etc. so, all tcp packets for a request need to reach the same tier 3 load balancer instance
 - "tier 3 load balancer" - this is where the actual load balancing happens, i.e. the request gets routed to the appropriate backend service
 - it handles load balancing between the different servers of the particular backend service - the backend service can use autoscaling, and the load balancer would automatically route to the right server
 - so basically, tier 3 would use dynamic algorithms as discussed above
@@ -1021,7 +1021,8 @@ go through [this](/posts/high-level-design/#load-balancers) and [this](/posts/hi
 - once the counter reaches the limit, discard the remaining requests for that window
 - disadvantage - significant bursts can occur. assume we are allowed 10 requests every 30 minutes. now, assume we receive 10 requests in 25-30 minutes, and 10 requests for 30-35 minutes. while all of them are permitted, we basically had 20 requests in 10 minutes, which is significantly higher than the allowed limit
 - "sliding window log algorithm" - it addresses the boundary problem we saw above
-- logs are kept sorted based on the timestamp
+- logs are kept sorted based on the timestamp - so, a linked list is enough to implement this
+- the idea is that we keep removing old requests that are at the head of the linked list, while we keep adding new requests to the tail of the linked list
 - e.g. a request arrives at 1.00pm. the window becomes 12.00 pm - 1.00 pm
 - another request arrives at 1.20pm. the window is updated to 12.20pm - 1.20pm, as the log size is less than the maximum rate limit, it is allowed
 - another request arrives at 1.45pm. the request is rejected, since the size becomes 3 which crosses the limit

@@ -1,5 +1,6 @@
 ---
 title: Java Multithreading
+math: true
 ---
 
 ## Concepts
@@ -9,9 +10,11 @@ title: Java Multithreading
 - **concurrency** means performing different tasks on the same core. instead of waiting for one task to entirely complete first, we perform both simultaneously in a time-shared manner. it **increases responsiveness**
 - **concurrency** is also called **multi tasking**. remember - we do not even need different cores for this
 - **parallelism** means performing different tasks on different cores. it **increases performance**
+- this is also called **multi processing**
+- so, this is how we differentiate between multitasking and multiprocessing when asked in interviews
 - **throughput** is the number of tasks completed per unit time
 - **latency** is the time taken per unit task
-- how are the two different 
+- how are the two different -
   - for optimizing throughput, since the tasks themselves are different, they just need to be scheduled on different threads in parallel, and that automatically increases the throughput. therefore, fewer considerations exist
   - for optimizing latency, we would probably break a single task into smaller subtasks. considerations - 
     - what parts of the original task can be performed in parallel and which parts have to be done sequentially
@@ -31,7 +34,6 @@ title: Java Multithreading
 - all objects are stored in the heap till there is a reference to them, after which they get garbage collected by the garbage collector
 - note - we can write `System.gc()`, which hints the jvm to run this garbage collector
 - strength of java is this automatic memory management, which we do not have to worry about
-- when we execute a program, it becomes a process i.e. it gets loaded into the memory from the disk and a thread is used to execute it
 - there are often way more processes being executed than cores in a cpu. so, using **context switching**, one thread at a time gets cpu and, gets paused and another thread is scheduled on the cpu
 - context switching has overhead, and doing a **lot of it can lead to** something called **thrashing**
 - however, context switching between the threads of the same process is much cheaper than context switching between the threads of different processes, since a lot of components like heaps are reused
@@ -42,6 +44,20 @@ title: Java Multithreading
 - number of threads = number of cores is the best way to start, since context switching as discussed earlier consumes resources
 - however, it is only optimal if the threads are always performing some computation, and never in blocked state. if the threads perform some io, then a thread performing some computation can take its place
 - also, modern day computers use **hyper threading** i.e. the same physical core is divided into multiple virtual cores. this means that a core can run more than one thread in modern cpus
+- program vs process vs thread - when we execute a program, it becomes a process i.e. it gets loaded into the memory from the disk and a thread is used to execute it
+  - **program** - set of instructions stored in the disk, e.g. a python script
+  - **process** - a process is a program in execution. it consists of resources like cpu, address space, disk and network i/o, etc. a program can have multiple processes 
+  - **thread** - smallest unit of execution of a process. it executes instructions serially. a process can have multiple threads. state can be global i.e. accessible by all the threads vs local i.e. private to the thread itself
+- processes do not share resources like threads but languages do support "inter process communication"
+- **preemptive multitasking** - os scheduler decides which thread / program runs and for how long — programs have no control over cpu time. so, if for e.g. a malicious infinite loop only hurts itself
+- **cooperative multitasking** - programs need to voluntarily yield the control back to scheduler after a timeout, blocking i/o, etc. the os has no say in this. a malicious program can hang the whole system
+- *history* - early windows and macos used cooperative multitasking - both later switched to preemptive. unix based systems have always used preemptive multitasking
+- **synchronous** - **blocks** at each method call before proceeding to the next line of code
+- **asynchronous** - runs separately from the main application thread and notifies the calling thread of its completion, failure or progress
+- asynchronous programs can either return a **promises** or **future**, or we can pass **callbacks**
+- **deadlock** - two or more threads are not able to progress as the resource required by the first thread is acquired by the second and the resource required by the second thread is acquired by the first
+- **liveness** - ability of a program to execute timely is called liveness
+- **live lock** - two threads react to the actions by each other without making any real progress. thread 2 releases resource 1 and acquires resource 2, while thread 1 releases resource 2 to acquire resource 1. now, they still both have 1 resource each while they needed both the resources. this keeps repeating in an endless loop 
 
 ## Thread Creation
 
@@ -105,6 +121,7 @@ title: Java Multithreading
   thread.start();
   thread.interrupt();
   ```
+- without the set daemon call, we see the "i was interrupted" logged but with the daemon property set to true, that print statement is never called
 - also, unlike normal threads, where the application does not close if any thread is running, a daemon thread does not prevent the application from terminating
 - if we implement `Callable` instead of `Runnable`, we can also throw an `InterruptedException` when for e.g. we see that `isInterrupted` is evaluated to true. this means the parent thread calling this thread will know that it was interrupted in an adhoc manner
 - threads execute independent of each other. but what if thread b depends on the results of thread a?
@@ -116,8 +133,8 @@ title: Java Multithreading
   t1.start(); t2.start();
   t1.join(); t2.join();
   ```
-- scenario 1 - t1 completes before t2, the main thread resumes, and again will be stopped till t2 completes
-- scenario 2 - t1 completes after t2. the main thread resumes and will not wait for t2 since it has already completed
+- scenario 1 - t1 completes before t2, the main thread resumes, and again stops till t2 completes
+- scenario 2 - t1 completes after t2. the main thread continues since t2 it already complete
 
 ## Thread Pooling 
 
@@ -264,7 +281,8 @@ title: Java Multithreading
 - we can wrap our code blocks with a **critical section**, which makes them atomic. this way, only one thread can access that block of code at a time, and any other thread trying to access it during this will be suspended till the critical section is freed
 - say we use `synchronized` on multiple methods of a class
 - once a thread invokes one of the synchronized method of this class, no other thread can invoke any other synchronized method of this class. this is because **using synchronized on a method is applied on the instance (object) of the method**
-- the object referred to above is called a **monitor**. only one thread can acquire a monitor at a time
+- the object referred to above is called a **monitor**. only one thread can acquire a monitor of an instance at a time
+- for static methods, the monitor acquired will be on the **class object**
 - method one - prefix method signature with synchronized (refer the counter example earlier. the shared resource print would now print 0)
   ```txt
   public synchronized void increment() {
@@ -277,7 +295,7 @@ title: Java Multithreading
     // ...
   }
   ```
-- using blocks, the code is much more flexible since we can have different critical sections locked on different monitors
+- using blocks, the code is more flexible as we can have different critical sections locked on different monitors
 - if using synchronized on methods, two different methods of the same class cannot be executed in parallel - the monitor there is the instance itself
 - however, when using synchronized blocks, we can do as follows inside different methods of the same class - 
   ```txt
@@ -295,18 +313,21 @@ title: Java Multithreading
   }
   ```
 - note - reduce critical section size for better performance
+- e.g. if we synchronize all the methods of a class to make it thread safe, it may reduce the throughput - consider a class with two completely independent methods, but both synchronize on the same object. so, we should lock at a finer granularity
 
 ## Atomic Operations
 
 - so, **assignment to references and primitive values in java are atomic**
   - `this.name = name` inside for e.g. a constructor is atomic
   - `int a = 8` is atomic
-- however, an **exception** in this is assignment to longs and doubles. since it is 64 bit, it happens in 2 operations - one assignment for the lower 32 bit and another one for the upper 32 bit
+- however, an **exception** in this is assignment to **longs** and **doubles**. since it is 64 bit, it happens in 2 operations - one assignment for the lower 32 bit and another one for the upper 32 bit
 - the solution is to declare them with **volatile**, e.g. `volatile double a = 1.2`
 - using volatile makes operations on longs and doubles atomic
 - also, java has a lot of atomic classes under `java.util.concurrent.atomic` as well
-- remember - when we use volatile, we make assignment atomic, not operations like `a++` atomic
-- my doubt probably cleared - then what is the use for e.g. `AtomicReference`, if assignment to reference is already an atomic operation? we can do as follows (a metric example discussed later)
+- why use atomic - locking has a lot of overhead - assume one thread gets a lock, and then other threads get blocked. this context switching causes a lot overhead. also, there are issues like live locking, deadlocks, etc
+- volatile is good, however it does not allow for compound actions like "read modify write"
+- basically when we use volatile, we make assignment atomic, not operations like `a++` atomic
+- my doubt probably cleared - then what is the use for e.g. `AtomicReference`, if assignment to reference is already an atomic operation? we can use **compare and swap** as follows -
   ```txt
   AtomicReference<State> state$ = new AtomicReference<>();
   state$.set(initialValue);
@@ -315,9 +336,38 @@ title: Java Multithreading
   State newSate = computeNewState();
   Boolean isUpdateSuccess = state$.compareAndSet(currentState, newState);
   ```
+- current day processors allow performing this **compare and swap** or **cas** operation atomically
+- unlike when using locks, the threads using cas do not sit in a blocked state and can perform other work
+- **aba problem** when using atomic
+  - thread a sees the value as p
+  - context switching happens and thread b gets the control
+  - thread b changes the value from p to q
+  - thread b changes the value from q back to p
+  - thread a comes back up and sees the value is still p, so it continues
+- issue - had the value been a number, it would have been okay. what if this was a memory address? imagine the updated object was assigned the exact same memory address. so, thread a does not see any change. thread a essentially sees a different object but it does not even know about it
+- solution - use versioning instead of relying on values
+  - thread a sees version 1
+  - thread b updates the value, which changes the version to 2
+  - thread b updates the value again, which again changes the version to 3
+  - thread a comes back up and sees that the version is now 3
+- in no to low contention, cas operations perform better than locking. however in high contention situations, cpu cycles are spent retrying cas operations but using locks in the same situation would have the threads suspended and then resumed later
+- finally, even better than atomic is to not share variables and state across threads at all if possible using **thread local**
 
 ## Data Race
 
+- **java memory model** - it is an enforcement that jvm implementations have to follow so that java programs have similar behavior everywhere
+- different architectures would perform (mainly two) optimizations - 
+  - reordering of instructions
+  - local vs shared processor caches
+- however, such optimizations should not affect the overall behavior of the programs
+- **within-thread as-if-serial** - any optimizations / reordering of instructions can be performed, as long as the output is the same as the output when the program is executed sequentially. this analogy works when we use a single thread, but breaks when we use multiple threads
+- example - 
+  ```
+  x = 1
+  initialized = true
+  ```
+- because they don't depend on each other, the cpu might reorder them for speed e.g. running line 2 before line 1. while it doesn't matter for a single thread, when using multiple threads, if thread b is constantly checking initialized, it might see initialized as true before thread a actually sets x as 1. thread b will then try to use x while it is still empty, thus causing a crash
+- for solving both - syncing of local and shared cache, and ensuring instructions are executed in the same order without reordering, we can use **volatile** or **locks** both
 - remember - race condition and data race are two different problems
 - **data race** - when the order of operations on variables do not match the sequential code we write. this happens mostly because there are optimizations like prefetching, vectorization, rearranging of instructions, etc
   ```txt
@@ -358,19 +408,20 @@ title: Java Multithreading
 - basically, the two threads have their own **local cache**, but also have a **shared cache**. they write the value to the local cache, but this does not
   - either update the shared cache
   - or the second thread's local cache does not refresh its value from the shared cache
-- **however, when we use volatile, it refreshes / synchronizes both the shared cache and the local cache of all threads**
-- basically, code before access to a volatile variable gets executed before it, and code after the access to a volatile variable after. this is called the happens before relationship
+- **however, when we use volatile, it synchronizes both shared and local cache of all threads**
+- the reads and writes go up to the main memory (i.e. the ram) and are not restricted to the l1 cache
+- basically, code before access to a volatile variable gets executed before it, and code after the access to a volatile variable after. this is called the **happens before** relationship
 - while we could have just used synchronized for both the methods above, realize the advantage of using volatile over synchronized. with synchronization, we lose out on the multithreading, since our functions would have been invoked one at a time. in this case, the two methods are still being invoked concurrently
 - if we have n cores, for each core we have a register. then we have an associated l1 cache on top of each register. l2 cache can be shared across multiple cores, and finally we have only one l3 cache and ram<br />
   ![multithreading](/assets/img/java/multithreading.drawio.png)
-- **java memory model** - it is an enforcement that jvm implementations have to follow so that java programs have similar behavior everywhere, and the different optimizations of instructions, cache, etc. do not affect the functioning of the program
+- note - volatile will work when we have a single writer and multiple readers. when we have multiple writers, we would need synchronized etc to make the whole program thread safe
 
 ## Locking Strategies and Deadlocks
 
 - **coarse-grained locking** - meaning we use one lock for everything, just like having synchronized on all methods, not performant. its counterpart is **fine-grained locking**
 - coarse grained locking example - make all methods of the class synchronized
 - cons with fine-grained locking - we can run into deadlocks more often
-- conditions for a deadlock - 
+- conditions for a deadlock -
   - **mutual exclusion** - only one thread can hold the resource at a time
   - **hold and wait** - the thread acquires the resource and is waiting for another resource to be freed up
   - **non-preemptive** - the resource is released only when the thread is done using it and another thread cannot acquire it forcefully
@@ -382,6 +433,7 @@ title: Java Multithreading
   Lock lock = new ReentrantLock();
   ```
 - unlike synchronized where the block signals the start and end of the critical section, locking and unlocking happens explicitly in case of reentrant locks
+- unlike synchronized, we can lock and unlock in different methods but not with different threads
 - to avoid deadlocks caused by for e.g. the method throwing exceptions, we should use it in the following way - 
   ```txt
   lock.lock();
@@ -393,6 +445,50 @@ title: Java Multithreading
   ```
 - it provides a lot of methods for more advanced use cases like `getOwner`, `getQueuedThreads`, `isHeldByCurrentThread`, `isLocked`, etc
 - the name `Reentrant` comes from the fact that the lock can be acquired by the thread multiple times, which means it would have to free it multiple times as well, e.g. think about recursive calls. we can get the number of times it was acquired using `getHoldCount`
+- e.g. the following lock below cannot be acquired more than once - 
+  ```
+  package org.example;
+
+  class NonReentrant {
+
+    private boolean isLocked = false;
+
+    public synchronized void lock() throws InterruptedException {
+
+      while (isLocked) {
+        wait();
+      }
+
+      isLocked = true;
+    }
+  }
+
+  public class Main {
+
+    static void main() {
+
+      try {
+
+        NonReentrant nonReentrant = new NonReentrant();
+
+        System.out.println("acquiring lock the first time");
+        nonReentrant.lock();
+        System.out.println("acquired lock the first time");
+
+        System.out.println("acquiring lock the second time");
+        nonReentrant.lock();
+        System.out.println("acquired lock the second time");
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  acquiring lock the first time
+  acquired lock the first time
+  acquiring lock the second time
+  ... program gets stuck ...
+  ```
 - another benefit of using reentrant locks is **fairness** - e.g. what if a thread repeatedly acquires the lock, leading to the starving of other threads? we can prevent this by instantiating it using `new ReentrantLock(true)`
 - note that introducing fairness also has some overhead associated with it, thus impacting performance
 - if we do not set to true, what we get is a **barge in lock** i.e. suppose there are three threads waiting for the lock in a queue. when the thread originally with the lock releases it, if a new thread not in the queue comes up to acquire the lock, it gets the lock and the threads in the queue continue to stay there. however, if we had set the fairness to true, the thread with the longest waiting time gets it first
@@ -424,7 +520,7 @@ title: Java Multithreading
   ```
 - so, we saw how reentrant lock, which while works like synchronized keyword, has additional capabilities like telling current owner and locking using different strategies like `lockInterruptibly` and `tryLock`
 - when locking till now, we used mutual exclusion to its fullest. but, we can be a bit more flexible when the shared resource is just being read from and not written to
-- multiple readers can access a resource concurrently but multiple writers or one writer with multiple readers cannot
+- multiple readers can access a resource concurrently but multiple writers cannot
 - this is why we have `ReentrantReadWriteLock`
   ```txt
   ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
@@ -434,97 +530,73 @@ title: Java Multithreading
 - fairness in `ReentrantReadWriteLock` works the same way as `ReentrantLock`, except that if the thread waiting for the longest time was a reader, all reader threads in the queue are freed up to read
 - of course, base decisions off of type of workloads - if workload is read intensive, read write lock is better, otherwise we might be better off using the normal reentrant lock itself
 
-## Inter Thread Communication
+## Semaphores
 
+- **mutex** - stands for "mutual exclusion". allows only a single thread to access a resource at a time. once acquired, all other threads attempting to acquire this mutex are blocked until another thread releases this mutex
+- mutex is also sometimes referred to as "locks" in general
 - **semaphore** - it helps restrict number of users to a resource
-- remember - locks only allow one user per resource, but semaphores allow multiple users to acquire a resource
-- so, we can call a lock a semaphore with one resource
+- remember - mutex only allow one user per resource, but semaphores allow multiple users to acquire a resource
+- people can tell that a binary semaphore (a semaphore with one permit) is basically a mutex
+- however, there is another difference - there is **no notion of owning thread** in semaphores unlike in mutex - e.g. a semaphore acquired by thread a can be released by thread b
   ```txt
   Semaphore semaphore = new Semaphore(number_of_permits);
   ```
 - when we call `semaphore.acquire()` to acquire a **permit**, and the number of permits reduces by one. if no permits are available at the moment, the thread is blocked till a resource in the semaphore is released
 - similarly, we have `semaphore.release()`
 - optionally, i think both `acquire` and `release` accept n, the number as an argument which can help acquire / release more than one permit
-- another major difference from locks - there is **no notion of owning thread** in semaphores unlike in locks - e.g. a semaphore acquired by thread a can be released by thread b. so, thread a can acquire it again without having ever released it
-- this reason also makes semaphores are a great choice for producer consumer problems. producer consumer problem using semaphores - 
-  - we need a lock so that multiple threads cannot touch the queue at one go
-  - we start with the full semaphore being empty and the empty semaphore being full, since there are no items initially
-  - look how we use semaphore's philosophy to our advantage - consumer threads acquire full semaphore while producer threads release it
-  - my understanding of why we need two semaphores - e.g. if we only had full semaphore - producer releases it and consumer acquires it - how would we have "stopped" the producer from producing when the rate of production > rate of consumption? its almost like that the two semaphores help with **back pressure** as well
-  ```txt
-  Integer CAPACITY = 50;
-  Semaphore empty = new Semaphore(CAPACITY);
-  Semaphore full = new Semaphore(0);
-  Queue<Item> queue = new ArrayDeque<>(CAPACITY);
-  Lock lock = new ReentrantLock();
-  ```
-- producer code - 
-  ```txt
-  while (true) {
-    empty.acquire();
-    Item item = produce();
-    lock.lock();
-    try {
-      queue.add(item);
-    } finally {
-      lock.unlock();
-    }
-    full.release();
-  }
-  ```
-- consumer code - 
-  ```txt
-  while (true) {
-    full.acquire();
-    Item item;
-    lock.lock();
-    try {
-      item = queue.poll();
-    } finally {
-      lock.unlock();
-    }
-    consume(item);
-    empty.release();
-  }
-  ```
-- some different inter thread communication techniques we saw till now - 
-  - calling `interrupt` from one thread on another thread. this is then further used in techniques like `lockInterruptibly`
-  - calling `join` for a thread to wait for another thread to complete its job
-  - using `acquire` and `release` on semaphore
-- **conditions** flow - 
-  - one thread **checks a condition**, and goes to sleep if the condition is not met
-  - a second thread can "mutate the state" and **signal** the first thread to check its condition again
-  - if the condition is met, the thread proceeds, else it can go back to sleep
-  - note - conditions come with a lock, so that the "state" being modified can be wrapped with a critical section
-  - note - when we call `await` on the condition, it also releases the lock before going to sleep, so that the second thread described in the flow above can acquire the lock to mutate the state. so, even though the thread which was waiting gets signaled to wake up, it also needs to be able to acquire the lock again, i.e. the other threads modifying state need to release the lock
-  - placing the condition inside the while loop helps so that even if signalled, it will again start waiting if the condition is not met yet
-  - first thread - 
-    ```txt
-    ReentrantLock lock = new ReentrantLock();
-    Condition condition = lock.newCondition();
+- semaphores are a great choice for producer consumer problems. this is because unlike mutex which serialize the execution of a critical section, multiple threads can acquire and release permits in a semaphore, thus helping with "inter thread communication / coordination"
 
-    lock.lock();
-    try {
-      while (condition x is not met) {
-        condition.await();
-      }
-    } finally {
-      lock.unlock();
+## Monitors
+
+- usually in multithreading applications, a thread needs to wait for some predicate to be true before proceeding. e.g. in producer consumer problems, if a producer hasn't produced anything the consumer can't consume anything
+- crude way of achieving this -
+  ```
+  void busyWaitFunction() {
+    // acquire mutex
+    while (predicate is false) {
+      // release mutex
+      // acquire mutex
     }
-    ```
-  - second thread - 
-    ```txt
-    lock.lock();
-    try {
-      // modify variables used in condition x...
-      condition.signal();
-      // despite signalling, thread one does not wake up, we need to unlock the lock first
-    } finally {
-      lock.unlock();
+  }
+  ```
+- inside the loop, we basically release the mutex, thus giving another thread a chance to acquire it and set the predicate to be true. finally before we check the loop predicate again, we make sure we have acquired the mutex again
+- this is called **spin waiting** as it consumes a lot of cpu cycles
+- so, we use a **monitor** - which is a **mutex** and a **condition**
+- one thread checks a **predicate**, and goes to sleep if it is not met by calling **wait**
+- note - when we call **wait** on the **condition**, it also releases the mutex before going to sleep, so that another thread can acquire the lock to mutate the state
+- calling wait puts this thread in a **wait queue** where other threads might already be present
+- since now the mutex was released, another thread gets a chance to acquire the mutex and subsequently change the predicate
+- then, this thread invokes **signal** on the **condition**, which causes one of the threads in the wait queue to get ready for execution
+- note - this other thread does not start executing - it is just moved from the **wait queue** to the **ready queue**
+- only after this thread releases the mutex does the other thread start executing
+- placing the condition inside the while loop helps so that even if signalled, it will again start waiting if the condition is not met yet. example - assume we have one producer and 5 consumers. consumers consume from a queue in the perform stuff block. if all the consumers are woken up and one of them ends up consuming, the other 4 go back to the waiting state. had we used an "if" block instead of the while loop, all of the consumers would have tried to consume after the if block and all but one consumer would have failed
+- first thread - 
+  ```txt
+  ReentrantLock lock = new ReentrantLock();
+  Condition condition = lock.newCondition();
+
+  lock.lock();
+  try {
+    while (condition x is not met) {
+      condition.await();
     }
-    ```
+    // perform stuff
+  } finally {
+    lock.unlock();
+  }
+  ```
+- second thread - 
+  ```txt
+  lock.lock();
+  try {
+    // modify variables used in condition x...
+    condition.signal();
+  } finally {
+    lock.unlock();
+  }
+  ```
 - conditions also have advanced methods like - 
-  - `await(timeout)` - just like locks have timeouts to prevent indefinite waiting
+  - `await(timeout)` - just like locks have timeouts to prevent indefinite waiting. i think calling signal on it can still wake it up. however, it would wake up automatically once the time specified is over
   - `signalAll` - using `signal`, only one of all the threads waiting on the condition wake up, `signalAll` wakes all of them up
 - the class Object, and therefore all objects have methods `wait`, `notify` and `notifyAll`
 - therefore, without using any special classes -
@@ -550,6 +622,66 @@ title: Java Multithreading
 - `notify` will wake up any random thread that was sleeping, and to wake up all threads we can use `notifyAll`
 - note, important, my understanding - the order of operations should not matter i.e. calling `notify` vs changing of state - because everything is inside a critical section, inside the same monitor
 - if we think about it, the `lock.lock()` and `lock.unlock()` are the starting and ending of `synchronize` blocks respectively, `condition.await()` is like `wait()` and `condition.signal()` like `notify()`
+- monitor vs semaphores
+  - monitors automate locking, and are safer. semaphores require manual locking, which makes them lightweight as they do not come with locks, but also highly error prone
+  - semaphores can allow multi-thread access but monitors only allow one thread at a time - again the concept of owning thread comes here just like we saw when comparing mutex and semaphore
+- **missed signal** - one thread calls signal before the other thread can call wait. this causes the thread that calls await to be stuck and thus the program stays stuck
+  ```
+  Lock lock = new ReentrantLock();
+  Condition condition = lock.newCondition();
+
+  Thread thread1 = new Thread(() -> {
+    lock.lock();
+    condition.signal();
+    lock.unlock();
+  });
+
+  Thread thread2 = new Thread(() -> {
+    lock.lock();
+    try {
+      condition.await();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  });
+
+  thread1.start(); thread1.join();
+  thread2.start(); thread2.join();
+  ```
+- **spurious wake ups** - waiting threads can be woken up even without signal being called! this is just an internal os detail. this is also a reason why the wait should happen inside conditions
+
+## Amdahl's Law
+
+$$
+S(n)=\frac{1}{(1-P)+\frac{P}{n}}
+$$
+
+- S(n) - speed up achieved by using n cores or threads
+- n is the number of cores or threads 
+- P - fraction of the program that can be made parallel
+- (1 - P) - fraction of the program that must be executed serially
+- when we set 1 core - the result is always 1
+- it basically tells us how many times of speed up we can get on how adding n cores
+- e.g. assume 90% of our program can be made parallel
+  - if we have 1 core - speed up is 1
+  - if we have 2 cores - speed up is 1.81
+  - if we have infinite cores - speed up is 10 - formula becomes $1 / (1 - P)$
+- this basically means that we cannot speed up our program more than 10 times compared to when it runs on a single core or cpu. to get more, we need to increase the parallel portions of our program
+- **utilization** is $S(n) / n$
+- so, when cores are 10, P is 0.9, speedup is ~ 5 and so utilization is 50%
+- what this means with an example - assume a program with P = 0.9 takes 10 minutes to run if no. of cores is 1. this means, 1 minute of it was serial. when we use 10 cores, it takes 2 minutes, out of which 1 minute was serial. during that 1 minute, 9 cores were sitting idle. so, the combined utilization of all the processors is 50%
+- note that in real, factors like memory, cache hits and misses, network and disk i/o, etc are not taken into consideration when we are using amdahl's law
+
+## Moore's Law
+
+- **moore** - co founder of intel
+- he said that the size of transistors kept getting smaller by two times every two years
+- the clock speeds of processors also doubled every two years
+- however, this only held true from 1970s till 2000s
+- so, we needed multi core processors and multi threading applications for performance gains
+
+## Atomic Classes
+
 - introducing locks can make our code more error-prone, more subject to deadlocks etc. however, it makes the code more flexible, e.g. unlike synchronized blocks which have to exist within a single method, locks can be acquired and freed from different methods
 - using locks result in issues like deadlocks if coded improperly
 - our main objective is to execute instructions as a single hardware operation
@@ -618,10 +750,10 @@ title: Java Multithreading
 - this is why we have a "thread per request model" in spring mvc, which i believe caps at 200 threads to prevent out of memory errors etc
 - it has caveats like - 
   - creating and managing threads are expensive - recall how it has its own stack etc
-  - number of context switching increases, which too is an expensive operation - recall **thrashing**
+  - number of context switches increases, which too is an expensive operation - recall **thrashing**
   - assume that there are two kinds of calls a web server supports - one that makes a call to an external service and one that calls the database. assume the external service has a performance bug, which makes the first call very slow. this way, if we had for e.g. 150 requests for first call and 150 for the second call (assume 200 is the default thread pool size in embedded tomcat), the 150 instances of the second call would start to be affected because of the 150 instances of the first call now
 - so, the newer model used by for e.g. spring web flux is **asynchronous** and **non blocking**
-- the thread is no longer blocked waiting for the response - a callback is provided which is called once the request is resolved
+- the thread is no longer blocked - a callback gets invoked once the request is resolved
 - so now, we can go back to the **thread per core** model - which is much more optimal
 - there can be problems like **callback hell** etc, which is solved by using libraries like project reactor for reactive style of programming, which is more declarative to write
 
@@ -631,7 +763,7 @@ title: Java Multithreading
 - these are also called **platform threads** - since they map one to one with os threads
 - **virtual threads** - they are not directly related to os threads. they are managed by the jvm itself
 - this makes them much less resource intensive
-- the jvm manages a pool of platform threads, and schedules the virtual threads on these platform threads one by one
+- the jvm manages a pool of platform threads, and schedules the virtual threads on them one by one
 - once a virtual thread is **mounted** on a platform thread, it is called a **carrier thread**
 - if a virtual thread cannot progress, it is **unmounted** from the platform thread and the platform thread starts tracking a new virtual thread
 - this way, the number of platform threads stay small in number and are influenced by the number of cores
@@ -646,12 +778,12 @@ title: Java Multithreading
   Thread.ofPlatform().unstarted(runnable).start(); // platform thread (explicit)
   // from thread: Thread[#20,Thread-1,5,main]
   
-  Thread.ofVirtual().unstarted(runnable).start(); // platform thread
+  Thread.ofVirtual().unstarted(runnable).start(); // virtual thread
   // from thread: VirtualThread[#21]/runnable@ForkJoinPool-1-worker-1
   ```
-- note - virtual threads are only useful when we have blocking io calls, not when we have cpu intensive operations
+- note - virtual threads are only useful when we have blocking io calls and not cpu intensive operations
 - this happens because unlike the usual model where our thread had to sit idle for the blocking call, the platform thread never stops here and is always working, it is the virtual thread that is sitting idle, and hence we optimize our cpu usage because we are using our platform threads optimally
-- so, developers still write the usual blocking code, which simplifies coding, as compared to say reactive programming
+- so, developers still write the usual blocking code, which is simpler compared to reactive programming
 - underneath, the blocking calls have been refactored for us to make use of virtual threads so that the platform threads are not sitting idle
 - e.g. cached thread pools replacement is **new virtual thread per task executor** - we do not have to create pools of fixed size - we use a thread per task model and all the complexity is now managed by jvm for us bts
 - when we are using normal threads for blocking calls e.g. using jpa, the thread cannot be used. what we can do is use context switching to utilize the cpu better. however, this model meant we needed a lot of platform threads, and managing them, context switching between them, etc has a lot of overhead, which is why maybe embedded tomcat for instance had a cap of about 200 threads. now with virtual threads, there is no cap needed, so it can be used via cached thread pool executor equivalent, but here there would never be any out of memory etc issues like in cached thread pool executor, since virtual threads are very lightweight
@@ -662,7 +794,7 @@ title: Java Multithreading
 ## Miscellaneous Notes
 
 - io bound threads are prioritized more than computation based threads
-  - since most of the time of ios threads is spent in waiting state
+  - since most of the time of io threads is spent in waiting state
   - and most of the time of cpu bound threads is spent in computation
   - maybe this is related to concepts of starvation etc somehow
 - why context switching is expensive - the entire state of the thread has to be saved in memory - all the stack, instruction pointer, local variables inside the method, etc
@@ -679,357 +811,13 @@ title: Java Multithreading
     thread.run(); // Hello from main
   }
   ```
-- Thread.State - an enum, with the following states - 
+- Thread.State - an enum, with the following states -
   - NEW - created but not yet started
   - RUNNABLE - thread is available for execution / already executing on some processor
   - BLOCKED - blocked for a monitor / lock
-  - WAITING - a thread goes into this state after we call `object.wait()` or `some_thread.join()` - so, the idea is that the thread now waits for some other thread's action?
-    - a thread can also go "out" of this state after we call `object.notify()` from elsewhere to wake this thread up
+  - WAITING - a thread goes into this state after we call `object.wait()` or `some_thread.join()` - a thread can go "out" of this state after we call `object.notify()` from elsewhere to wake this thread up
   - TIMED_WAITING - same as above but with timeouts? threads on calling `Thread.sleep` also go to this state
   - TERMINATED - after thread has finished execution
 - when we override the `start` method, we need to call `super.start()`
-- when we say `Thread.sleep(x)`, first the thread goes into timed_waiting state. after the time when it does go into runnable state, there is no guarantee that the thread will iimediately be scheduled on a core - a core might be occupied by some other thread
+- when we say `Thread.sleep(x)`, first the thread goes into timed_waiting state. after the time when it does go into runnable state, there is no guarantee that the thread will immediately be scheduled on a core - a core might be occupied by some other thread
 - an `IIllegalMonitorStateException` is thrown if we try to call `await` / `signal` on a Condition without locking the `lock` first
-
-## Example - Rate Limiting Using Token Bucket Filter
-
-- a bucket gets filled at the rate of 1 token per second
-- the bucket has a capacity of n
-- there can be multiple consumers - when they ask for a thread, they should get a token - they will be stalled till a token is available
-- producer code - 
-  ```txt
-  @SneakyThrows
-  private void produce() {
-
-    while (true) {
-
-      synchronized (this) {
-
-        if (tokens < capacity) {
-          tokens += 1;
-        }
-
-        notifyAll();
-      }
-
-      Thread.sleep(1000);
-    }
-  }
-
-  void startProducing() {
-
-    Thread producerThread = new Thread(this::produce);
-
-    producerThread.setDaemon(true);
-    producerThread.start();
-  }
-  ```
-- consumer code - 
-  ```txt
-  @SneakyThrows
-  void consume() {
-
-    synchronized (this) {
-
-      while (tokens == 0) {
-        wait();
-      }
-
-      tokens -= 1;
-    }
-  }
-  ```
-- final total bucket code - 
-  ```txt
-  static class Bucket {
-
-    int tokens;
-
-    int capacity;
-
-    public Bucket(int capacity) {
-      this.capacity = capacity;
-      tokens = 0;
-    }
-
-    private void produce() { ... }
-    private void startProducing() { ... }
-    private void consume() { ... }
-  }
-  ```
-
-### A Good Test
-
-- notice how since we start after 7 seconds, the first 5 consumer threads get their token instantly
-- while the remaining three threads take 1 second each
-- output - 
-  ```txt
-  1716809831> thread 0 consumed successfully
-  1716809831> thread 1 consumed successfully
-  1716809831> thread 2 consumed successfully
-  1716809831> thread 3 consumed successfully
-  1716809831> thread 5 consumed successfully
-  1716809832> thread 4 consumed successfully
-  1716809833> thread 7 consumed successfully
-  1716809834> thread 6 consumed successfully
-  ```
-
-```txt
-Bucket bucket = new Bucket(5);
-bucket.startProducing();
-Thread.sleep(7);
-
-List<Thread> threads = new ArrayList<>();
-
-for (int i = 0; i < 8; i++) {
-
-  Thread t = new Thread(() -> {
-    bucket.consume();
-    System.out.printf("%s> %s consumed successfully\n", 
-      System.currentTimeMillis() / 1000, Thread.currentThread().getName());
-  });
-  t.setName("thread " + i);
-
-  threads.add(t);
-}
-
-Thread.sleep(5000);
-
-threads.forEach(Thread::start);
-
-for (Thread t : threads) {
-  t.join();
-}
-```
-
-## Example - Implementing a Semaphore
-
-- java does have a semaphore, but we initialize it with initial permits
-- there is no limit as such to the maximum permits in java's semaphore
-- implement a semaphore which is initialized with maximum allowed permits, and is also initialized with the same number of permits
-- acquire - 
-  ```txt
-  @SneakyThrows
-  synchronized void acquire() {
-
-    while (availablePermits == 0) {
-      wait();
-    }
-
-    Thread.sleep(1000);
-
-    availablePermits -= 1;
-    notify();
-  }
-  ```
-- release - 
-  ```txt
-  @SneakyThrows
-  synchronized void release() {
-
-    while (availablePermits == maxPermits) {
-      wait();
-    }
-
-    Thread.sleep(1);
-
-    availablePermits += 1;
-    notify();
-  }
-  ```
-- actual semaphore - 
-  ```txt
-  static class Semaphore {
-
-    private final int maxPermits;
-
-    private int availablePermits;
-
-    public Semaphore(int maxPermits) {
-      this.maxPermits = maxPermits;
-      this.availablePermits = maxPermits;
-    }
-
-    synchronized void acquire() { ... }
- 
-    synchronized void release() { ... }
-  }
-  ```
-- tips for testing - 
-  - initialize using 1
-  - make the thread calling acquire slow
-  - make the thread calling release fast
-  - show release would not be called until acquire is called
-
-## Example - Implementing a Read Write Lock
-
-- acquiring read -
-  ```txt
-  @SneakyThrows
-  synchronized void acquireRead() {
-
-    while (isWriteAcquired) {
-      wait();
-    }
-
-    readers += 1;
-  }
-  ```
-- acquiring write -
-  ```txt
-  @SneakyThrows
-  synchronized void acquireWrite() {
-
-    while (isWriteAcquired || readers != 0) {
-      wait();
-    }
-
-    isWriteAcquired = true;
-  }
-  ```
-- releasing read - my thought - just call `notify` to wake up just 1 writer
-  ```txt
-  synchronized void releaseRead() {
-    readers -= 1;
-    notify();
-  }
-  ```
-- releasing write - my thought - call `notifyAll` to wake up all writers
-  ```txt
-  synchronized void releaseWrite() {
-    isWriteAcquired = false;
-    notifyAll();
-  }
-  ```
-
-## Example - Dining Philosophers
-
-- five philosophers - either eat or think
-- they share five forks between them
-- they need two forks to eat - so at a time, only two philosophers can eat
-
-![dining philosophers](/assets/img/java-multithreading/dining-philosophers.png)
-
-- remember - we can easily end up in a deadlock - assume all philosophers acquire the fork on their left, and now all of them will wait for the fork on their right. two solutions are
-  - only four philosophers at a time try acquiring a fork. this way, at least one philosopher will always be able to acquire two forks and it solves the problem
-  - all the philosophers but one try acquiring the left fork first, and then the right fork. one of them tries acquiring the right fork first. note that the order in which forks are released does not matter
-  - only allow picking up of the fork if both the forks are available, do not pick and hold one fork
-- tip - do not insert sleeps - we will see a deadlock quickly
-
-### Table
-
-```txt
-static class Table {
-
-  private final Semaphore[] forks;
-
-  Table(int size) {
-
-    forks = new Semaphore[size];
-
-    for (int i = 0; i < size; i++) {
-      forks[i] = new Semaphore(1);
-    }
-  }
-
-  @SneakyThrows
-  private void acquire(int philosopherId) {
-    forks[philosopherId].acquire();
-    forks[(philosopherId + 1) % forks.length].acquire();
-  }
-
-  private void release(int philosopherId) {
-    forks[philosopherId].release();
-    forks[(philosopherId + 1) % forks.length].release();
-  }
-}
-```
-
-### Philosopher
-
-```txt
-static class Philosopher {
-
-  private final Table table;
-
-  private final Integer id;
-
-  public Philosopher(Table table, Integer id) {
-    this.table = table;
-    this.id = id;
-  }
-
-  void start() {
-    while (true) {
-      contemplate();
-      eat();
-    }
-  }
-
-  @SneakyThrows
-  private void contemplate() {
-    System.out.printf("%d thinking...\n", id);
-  }
-
-  @SneakyThrows
-  private void eat() {
-    table.acquire(id);
-    System.out.printf("%d eating...\n", id);
-    table.release(id);
-  }
-}
-```
-
-### Main Method
-
-```txt
-int size = 5;
-
-Table table = new Table(size);
-
-List<Thread> threads = new ArrayList<>();
-
-for (int i = 0; i < size; i++) {
-  Philosopher philosopher = new Philosopher(table, i);
-  Thread thread = new Thread(philosopher::start);
-  threads.add(thread);
-}
-
-for (Thread thread : threads) {
-  thread.start();
-}
-
-for (Thread thread : threads) {
-  thread.join();
-}
-```
-
-### Solution 1
-
-```txt
-// inside constructor
-eatingPhilosophers = new Semaphore(size - 1);
-
-@SneakyThrows
-private void acquire(int philosopherId) {
-  eatingPhilosophers.acquire();
-  forks[philosopherId].acquire();
-  forks[(philosopherId + 1) % forks.length].acquire();
-  eatingPhilosophers.release();
-}
-```
-
-### Solution 2 
-
-```txt
-@SneakyThrows
-private void acquire(int philosopherId) {
-  if (philosopherId == 0) {
-    forks[(philosopherId + 1) % forks.length].acquire();
-    forks[philosopherId].acquire();
-  } else {
-    forks[philosopherId].acquire();
-    forks[(philosopherId + 1) % forks.length].acquire();
-  }
-}
-```
